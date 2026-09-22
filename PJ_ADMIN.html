@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PJ Inventario — Panel Administrador</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--green:#006747;--green-dk:#00432e;--red:#e31837;--gold:#ffc220;--bg:#f2f3f5;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);padding:8px;margin:0;}
+.container{max-width:900px;margin:0 auto;background:#fff;padding:14px;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.10);}
+.brand-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff;padding:16px 18px;border-radius:12px;margin-bottom:14px;border-bottom:4px solid var(--red);box-shadow:0 4px 14px rgba(0,0,0,.15);}
+.brand-icon{font-size:24px;background:rgba(255,255,255,.15);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-title{font-size:17px;font-weight:800;letter-spacing:.2px;}
+.brand-sub{font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.6px;}
+.login-card{max-width:360px;margin:6px auto;background:#fff;padding:22px 20px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);border:1px solid #eee;}
+.login-hint{font-size:12px;color:#666;margin:0 0 16px;text-align:center;}
+.field-label{display:block;font-size:10px;font-weight:800;color:var(--green);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.field-input{width:100%;padding:11px 12px;border-radius:9px;border:1.5px solid #ddd;margin-bottom:14px;font-size:14px;transition:.15s;}
+.field-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(0,103,71,.12);}
+.btn-primary{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 3px 0 var(--green-dk);}
+.btn-primary:active{box-shadow:0 1px 0 var(--green-dk);transform:translateY(2px);}
+.field-error{color:var(--red);font-size:12px;text-align:center;margin:10px 0 0;min-height:14px;font-weight:600;}
+h1{font-size:17px;color:var(--green);text-align:center;margin:4px 0 12px;}
+h2{font-size:14px;color:var(--green);margin:16px 0 8px;font-weight:800;}
+.tiendas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+.tiendas.v-lista{display:flex;flex-direction:column;gap:6px;}
+.tiendas.v-lista .tienda-card{padding:7px 10px;}
+.tiendas.v-lista .tienda-card .nom{font-size:12px;}
+.tiendas.v-lista .tienda-card .meta{font-size:9px;}
+.tiendas.v-detallada{display:flex;flex-direction:column;gap:10px;}
+.tiendas.v-detallada .tienda-card{padding:14px;}
+.tiendas.v-detallada .tienda-card .nom{font-size:15px;}
+.tiendas.v-detallada .tienda-card .meta{font-size:12px;line-height:1.5;}
+.tiendas.v-iconos-grandes{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+.tiendas.v-iconos-grandes .tienda-card{padding:16px;}
+.tiendas.v-iconos-grandes .tienda-card .nom{font-size:16px;}
+.tiendas.v-iconos-grandes .tienda-card .meta{font-size:11px;}
+.vista-toggle{display:flex;gap:4px;justify-content:flex-end;margin-bottom:8px;}
+.vista-toggle button{padding:6px 9px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:13px;cursor:pointer;}
+.vista-toggle button.on{background:var(--green);color:#fff;border-color:var(--green);}
+.tienda-card{border:2px solid #e0e0e0;border-radius:10px;padding:10px;cursor:pointer;transition:.15s;background:#fafafa;}
+.tienda-card:hover{border-color:var(--green);}
+.tienda-card.sel{border-color:var(--green);background:var(--green);color:#fff;}
+.tienda-card .nom{font-weight:800;font-size:13px;}
+.tienda-card .meta{font-size:10px;opacity:.8;margin-top:4px;}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+.dot-live{background:#2e7d32;}
+.dot-old{background:#f9a825;}
+.dot-none{background:#bbb;}
+.card{border:2px solid #e0e0e0;border-radius:12px;padding:12px;margin-top:10px;}
+.file-wrap{border:2px dashed #ccc;border-radius:10px;padding:14px;text-align:center;}
+.file-wrap input{margin-top:8px;width:100%;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}
+.filters button{flex:1;min-width:70px;padding:8px 4px;border:none;border-radius:8px;background:#eee;font-size:11px;font-weight:700;cursor:pointer;}
+.filters button.on{background:var(--green);color:#fff;}
+select{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;font-size:13px;margin-bottom:8px;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;}
+th{background:var(--green);color:#fff;padding:6px 3px;position:sticky;top:0;}
+td{padding:6px 3px;text-align:center;border-bottom:1px solid #eee;}
+tr.row-sobra{background:rgba(46,125,50,.08);}
+tr.row-falta{background:rgba(211,47,47,.08);}
+.empty{text-align:center;color:#999;font-size:12px;padding:20px 0;}
+.legend{display:flex;justify-content:space-around;font-size:10px;font-weight:800;color:#555;margin:6px 0;}
+.resumen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:6px;}
+.resumen-item{display:flex;align-items:flex-start;gap:8px;}
+.resumen-ico{font-size:17px;line-height:1.3;}
+.resumen-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#777;font-weight:800;}
+.resumen-val{font-size:13px;font-weight:700;color:#222;}
+.top10-wrap{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.top10-col{flex:1;min-width:150px;border-radius:10px;padding:10px;}
+.top10-sobra{border-left:4px solid #2e7d32;background:#f1f8e9;}
+.top10-falta{border-left:4px solid #c62828;background:#fdecea;}
+.top10-head{font-size:12px;font-weight:800;margin-bottom:6px;}
+.top10-sobra .top10-head{color:#2e7d32;}
+.top10-falta .top10-head{color:#c62828;}
+.top10-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(0,0,0,.08);}
+.top10-item:last-child{border-bottom:none;}
+.top10-nom{flex:1;font-size:11px;color:#333;line-height:1.3;}
+.top10-val{font-weight:800;font-size:11px;white-space:nowrap;padding:2px 7px;border-radius:6px;}
+.val-pos{color:#1b5e20;background:#c8e6c9;}
+.val-neg{color:#b71c1c;background:#ffcdd2;}
+.top10-empty{font-size:11px;color:#999;font-style:italic;}
+@media print{
+  body *{visibility:hidden;}
+  #reporteImprimir,#reporteImprimir *{visibility:visible;}
+  #reporteImprimir{position:absolute;top:0;left:0;width:100%;padding:10px;}
+  .no-print{display:none!important;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="brand-bar">
+    <div class="brand-icon">📡</div>
+    <div>
+      <div class="brand-title">PJ Inventario</div>
+      <div class="brand-sub">Panel de Administrador</div>
+    </div>
+  </div>
+
+  <div id="loginBox" class="login-card">
+    <p class="login-hint">Ingresa con tu cuenta de administrador para ver las tiendas.</p>
+    <label class="field-label">Correo</label>
+    <input type="email" id="loginEmail" class="field-input" placeholder="tucorreo@ejemplo.com">
+    <label class="field-label">Contraseña</label>
+    <input type="password" id="loginPass" class="field-input" placeholder="••••••••">
+    <button onclick="login()" class="btn-primary">Ingresar</button>
+    <p id="loginError" class="field-error"></p>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
+      <span id="rolActual" style="font-size:11px;font-weight:800;color:var(--green);background:#f1f8e9;padding:5px 10px;border-radius:6px;"></span>
+      <button onclick="pedirPermisoNotif()" id="btnNotif" style="flex:1;min-width:150px;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;">🔔 Activar avisos de "resultado enviado"</button>
+      <button onclick="logout()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Cerrar sesión</button>
+    </div>
+
+    <div class="solo-superadmin">
+      <h2>👥 Supervisores</h2>
+      <button onclick="abrirModalSupervisor()" style="width:100%;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:10px;">➕ Nuevo Supervisor</button>
+      <div id="vistaToggleSup" class="vista-toggle">
+        <button data-v="v-lista" onclick="setVista('sup','v-lista')" title="Lista">📋</button>
+        <button data-v="v-iconos" onclick="setVista('sup','v-iconos')" title="Iconos">🔲</button>
+        <button data-v="v-detallada" onclick="setVista('sup','v-detallada')" title="Lista detallada">📄</button>
+        <button data-v="v-iconos-grandes" onclick="setVista('sup','v-iconos-grandes')" title="Iconos grandes">🔳</button>
+      </div>
+      <div id="supervisores" class="tiendas"><p class="empty">Conectando...</p></div>
+      <div id="detalleSupervisor" style="display:none;"></div>
+
+      <div id="modalSupervisor" class="card" style="display:none;border-color:#1565c0;">
+        <h2 style="margin-top:0;">➕ Nuevo Supervisor</h2>
+        <input type="text" id="nuevoSupNombre" placeholder="Nombre del supervisor" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <input type="email" id="nuevoSupEmail" placeholder="Correo del supervisor" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <input type="password" id="nuevoSupPass" placeholder="Contraseña (mínimo 6 caracteres)" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="cerrarModalSupervisor()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+          <button onclick="crearSupervisor()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+        </div>
+        <p id="supError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+      </div>
+
+      <div id="modalEditarSup" class="card" style="display:none;border-color:#1565c0;">
+        <h2 style="margin-top:0;">✏️ Editar Supervisor</h2>
+        <input type="hidden" id="editarSupUid">
+        <label class="field-label">Nombre</label>
+        <input type="text" id="editarSupNombre" class="field-input" style="margin-bottom:8px;">
+        <label class="field-label">Nuevo correo (dejar vacío para no cambiarlo)</label>
+        <input type="email" id="editarSupEmail" class="field-input" placeholder="Solo si de verdad cambia de correo" style="margin-bottom:8px;">
+        <p style="font-size:11px;color:#777;margin:0 0 10px;">⚠️ Cambiar el correo crea un acceso nuevo y reasigna automáticamente sus tiendas — el correo anterior deja de servir. Para restablecer solo la contraseña, usa el botón "🔑 Restablecer clave" en su tarjeta en vez de esto.</p>
+        <div style="display:flex;gap:8px;">
+          <button onclick="cerrarModalEditarSup()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+          <button onclick="guardarEdicionSupervisor()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+        </div>
+        <p id="editarSupError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+      </div>
+    </div>
+
+    <h2>🏪 Tiendas</h2>
+    <button onclick="abrirModalTienda()" class="solo-superadmin" style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:10px;">➕ Nueva Tienda</button>
+    <div id="vistaToggleTiendas" class="vista-toggle">
+      <button data-v="v-lista" onclick="setVista('tiendas','v-lista')" title="Lista">📋</button>
+      <button data-v="v-iconos" onclick="setVista('tiendas','v-iconos')" title="Iconos">🔲</button>
+      <button data-v="v-detallada" onclick="setVista('tiendas','v-detallada')" title="Lista detallada">📄</button>
+      <button data-v="v-iconos-grandes" onclick="setVista('tiendas','v-iconos-grandes')" title="Iconos grandes">🔳</button>
+    </div>
+    <div id="tiendas" class="tiendas"><p class="empty">Conectando...</p></div>
+
+    <div id="modalTienda" class="card" style="display:none;border-color:var(--green);">
+      <h2 style="margin-top:0;">➕ Nueva Tienda</h2>
+      <input type="text" id="nuevaTiendaNombre" placeholder="Nombre de la tienda" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+      <input type="tel" id="nuevaTiendaPin" placeholder="PIN de acceso (mínimo 6 caracteres)" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+      <select id="nuevaTiendaSupervisor" style="margin-bottom:8px;"><option value="">Sin supervisor asignado</option></select>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalTienda()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="crearTienda()" style="flex:1;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="tiendaError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div id="modalEditar" class="card" style="display:none;border-color:#1565c0;">
+      <h2 style="margin-top:0;">✏️ Editar Tienda</h2>
+      <input type="hidden" id="editarTiendaId">
+      <div class="solo-superadmin" style="background:#fffde7;border:1px solid var(--gold);border-radius:8px;padding:8px;margin-bottom:10px;">
+        <label class="field-label">👔 Supervisor asignado</label>
+        <select id="editarSupervisor" style="margin-bottom:0;"><option value="">Sin supervisor asignado</option></select>
+      </div>
+      <label class="field-label">Nombre</label>
+      <input type="text" id="editarNombre" class="field-input" style="margin-bottom:8px;">
+      <label class="field-label">Nuevo PIN (dejar vacío para no cambiarlo)</label>
+      <input type="tel" id="editarPin" class="field-input" placeholder="Mínimo 6 caracteres" style="margin-bottom:8px;">
+      <p style="font-size:11px;color:#777;margin:0 0 10px;">⚠️ Si pones un PIN nuevo, el PIN anterior deja de funcionar de inmediato. El conteo e historial de la tienda no se pierden.</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalEditar()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="guardarEdicionTienda()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="editarError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div id="modalAsignar" class="card solo-superadmin" style="display:none;border-color:var(--gold);background:#fffde7;">
+      <h2 style="margin-top:0;">👔 Asignar Supervisor</h2>
+      <input type="hidden" id="asignarTiendaId">
+      <p id="asignarTiendaNombre" style="font-weight:700;margin-top:0;"></p>
+      <select id="asignarSupervisor" style="margin-bottom:10px;"><option value="">Sin supervisor asignado</option></select>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalAsignar()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="guardarAsignacion()" style="flex:1;padding:10px;background:#f57f17;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="asignarError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div class="card" style="border-color:#1565c0;background:#e3f2fd;">
+      <strong style="color:#0d47a1;font-size:12px;">💡 Toca una tienda arriba para ver su conteo y su semáforo. Se actualiza solo, en vivo.</strong>
+    </div>
+
+    <div id="detalleTienda" style="display:none;">
+      <div class="no-print" style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="exportarPDF()" style="flex:1;padding:9px;background:#c62828;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;">🖨️ Exportar PDF</button>
+        <button onclick="capturarYEnviar()" style="flex:1;padding:9px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;">📸 Capturar y enviar</button>
+      </div>
+      <div class="filters no-print">
+        <button class="on" id="fAll" onclick="setFiltro('all')">Todos <span id="cTotal">0</span></button>
+        <button id="fVerde" onclick="setFiltro('verde')">🟢 <span id="cVerde">0</span></button>
+        <button id="fAmar" onclick="setFiltro('amarillo')">🟡 <span id="cAmar">0</span></button>
+        <button id="fRojo" onclick="setFiltro('rojo')">🔴 <span id="cRojo">0</span></button>
+        <button id="fGris" onclick="setFiltro('gris')">⚪ <span id="cGris">0</span></button>
+      </div>
+      <select id="orden" class="no-print" onchange="render()">
+        <option value="pctdesc">Ordenar: mayor diferencia primero (±)</option>
+        <option value="posdesc">Ordenar: mayor SOBRANTE primero (+)</option>
+        <option value="negasc">Ordenar: mayor FALTANTE primero (−)</option>
+        <option value="alpha">Ordenar: alfabético</option>
+      </select>
+
+      <div id="reporteImprimir" style="background:#fff;padding:6px;">
+        <h2 id="tituloDetalle">📋 Detalle</h2>
+        <div id="resumenTienda" style="font-size:12px;background:#f1f8e9;border:1px solid #c5e1a5;border-radius:8px;padding:10px;margin-bottom:8px;"></div>
+        <div id="fuenteSAP" style="font-size:11px;font-weight:700;background:#fff3e0;padding:6px 10px;border-radius:8px;margin-bottom:8px;"></div>
+        <div class="legend"><span>🟢 ≤2%</span><span>🟡 2-5%</span><span>🔴 ≥5%</span><span>⚪ Sin dato</span></div>
+        <table>
+          <thead><tr><th>Cod</th><th style="text-align:left">Producto</th><th>Física</th><th>Teórica</th><th>Dif</th><th>Dif%</th><th>🚦</th></tr></thead>
+          <tbody id="tbodyDetalle"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA5lkdoaFPAmhPJ9n2mI_Xf04y5vw5i4Z4",
+  authDomain: "pj-inventario.firebaseapp.com",
+  projectId: "pj-inventario",
+  storageBucket: "pj-inventario.firebasestorage.app",
+  messagingSenderId: "3124766868",
+  appId: "1:3124766868:web:412756bb60bfde3a102c81"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DOMINIO_AUTH="pjinventario.local";
+const SUPER_ADMIN_EMAIL="lui.gui.11@hotmail.com";
+
+let tiendasData={}; // id -> doc data
+let supervisoresData={}; // uid -> doc data (solo super-admin)
+let tiendaSel=null;
+let filtro="all";
+let unsubTiendas=null;
+let unsubSupervisores=null;
+let estadosPrevios={};
+let esSuperAdmin=false;
+let miEmail="";
+let vistaTiendas=localStorage.getItem('vista_tiendas')||'v-iconos';
+let vistaSup=localStorage.getItem('vista_sup')||'v-iconos';
+let supervisorSel=null;
+
+function setVista(cual,v){
+  if(cual==='tiendas'){vistaTiendas=v;localStorage.setItem('vista_tiendas',v);}
+  else{vistaSup=v;localStorage.setItem('vista_sup',v);}
+  let toggleId=cual==='tiendas'?'vistaToggleTiendas':'vistaToggleSup';
+  document.querySelectorAll(`#${toggleId} button`).forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(cual==='tiendas')renderTiendas();else renderSupervisores();
+}
+
+function slugTienda(nombre){return nombre.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");}
+function abrirModalTienda(){document.getElementById('modalTienda').style.display='block';document.getElementById('tiendaError').innerText="";}
+function cerrarModalTienda(){document.getElementById('modalTienda').style.display='none';document.getElementById('nuevaTiendaNombre').value="";document.getElementById('nuevaTiendaPin').value="";}
+function crearTienda(){
+  let nombre=document.getElementById('nuevaTiendaNombre').value.trim();
+  let pin=document.getElementById('nuevaTiendaPin').value.trim();
+  let supervisorEmail=document.getElementById('nuevaTiendaSupervisor').value;
+  let err=document.getElementById('tiendaError');err.innerText="";
+  if(!nombre)return err.innerText="Falta el nombre de la tienda.";
+  if(pin.length<6)return err.innerText="El PIN debe tener al menos 6 caracteres.";
+  let slug=slugTienda(nombre);
+  if(!slug)return err.innerText="Nombre inválido.";
+  if(tiendasData[slug])return err.innerText="Ya existe una tienda con ese nombre.";
+  // Usamos una app secundaria de Firebase solo para crear el usuario, así no se cierra tu sesión de admin.
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword("pin_"+pin+"@"+DOMINIO_AUTH,pin).then(cred=>{
+    let uid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('tiendas').doc(slug).set({
+        nombre,pin,activo:true,uid,supervisorEmail:supervisorEmail||null,
+        conteo:[],extras:[],baseMod:[],mapaStockSistema:{},
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+  }).then(()=>{cerrarModalTienda();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese PIN ya está en uso por otra tienda.";
+    else if(e.code==="auth/weak-password")err.innerText="El PIN debe tener al menos 6 caracteres.";
+    else err.innerText="No se pudo crear: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+function toggleActivo(id){
+  let d=tiendasData[id];if(!d)return;
+  let nuevo=!(d.activo!==false);
+  if(!confirm(`¿${nuevo?"Reactivar":"Desactivar"} "${d.nombre||id}"?`))return;
+  db.collection('tiendas').doc(id).update({activo:nuevo});
+}
+function eliminarTienda(id){
+  let d=tiendasData[id];if(!d)return;
+  if(!confirm(`¿ELIMINAR PERMANENTEMENTE "${d.nombre||id}"?\n\nEsto borra su conteo, historial y configuración de la nube. No se puede deshacer.\n\nEl PIN dejará de funcionar (aunque la cuenta de acceso queda huérfana, no se puede reutilizar el mismo PIN salvo que lo borres también desde Authentication en Firebase).`))return;
+  if(!confirm(`Última confirmación: ¿de verdad eliminar "${d.nombre||id}"?`))return;
+  db.collection('tiendas').doc(id).delete().then(()=>{
+    if(tiendaSel===id){tiendaSel=null;document.getElementById('detalleTienda').style.display='none';}
+  }).catch(e=>alert("No se pudo eliminar: "+e.message));
+}
+
+// ===== SUPERVISORES (solo super-admin) =====
+function renderSelectSupervisor(){
+  let opciones='<option value="">Sin supervisor asignado</option>'+Object.keys(supervisoresData).map(uid=>{
+    let s=supervisoresData[uid];
+    return `<option value="${s.email}">${s.nombre||s.email}${s.activo===false?" (inactivo)":""}</option>`;
+  }).join("");
+  ["nuevaTiendaSupervisor","editarSupervisor","asignarSupervisor"].forEach(elId=>{
+    let el=document.getElementById(elId);
+    if(el){let actual=el.value;el.innerHTML=opciones;el.value=actual;}
+  });
+}
+function renderSupervisores(){
+  let box=document.getElementById('supervisores');if(!box)return;
+  box.className="tiendas "+vistaSup;
+  let ids=Object.keys(supervisoresData);
+  if(ids.length===0){box.innerHTML='<p class="empty">Todavía no has creado ningún supervisor.</p>';return;}
+  box.innerHTML="";
+  ids.sort((a,b)=>(supervisoresData[a].nombre||"").localeCompare(supervisoresData[b].nombre||""));
+  ids.forEach(uid=>{
+    let s=supervisoresData[uid];
+    let inactivo=s.activo===false;
+    let nTiendas=Object.values(tiendasData).filter(t=>t.supervisorEmail===s.email).length;
+    let card=document.createElement('div');
+    card.className="tienda-card"+(supervisorSel===uid?" sel":"");
+    card.style.opacity=inactivo?"0.5":"1";
+    card.innerHTML=`<div class="nom">${s.nombre||s.email}${inactivo?" (inactivo)":""}</div><div class="meta">${s.email} · ${nTiendas} tienda(s)</div><div style="display:flex;gap:4px;margin-top:6px;"><button onclick="event.stopPropagation();abrirModalEditarSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #1565c0;border-radius:6px;background:#fff;color:#1565c0;cursor:pointer;">✏️ Editar</button><button onclick="event.stopPropagation();resetPasswordSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #f9a825;border-radius:6px;background:#fff;color:#f57f17;cursor:pointer;">🔑 Restablecer clave</button></div><div style="display:flex;gap:4px;margin-top:4px;"><button onclick="event.stopPropagation();toggleActivoSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid rgba(0,0,0,.2);border-radius:6px;background:#fff;cursor:pointer;">${inactivo?"Reactivar":"Desactivar"}</button><button onclick="event.stopPropagation();eliminarSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--red);border-radius:6px;background:#fff;color:var(--red);cursor:pointer;">🗑️ Eliminar</button></div>`;
+    card.onclick=()=>{supervisorSel=(supervisorSel===uid?null:uid);renderSupervisores();renderDetalleSupervisor();};
+    box.appendChild(card);
+  });
+  renderDetalleSupervisor();
+}
+function renderDetalleSupervisor(){
+  let box=document.getElementById('detalleSupervisor');if(!box)return;
+  if(!supervisorSel||!supervisoresData[supervisorSel]){box.style.display='none';return;}
+  let s=supervisoresData[supervisorSel];
+  let tiendasDelSup=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+  box.style.display='block';
+  box.innerHTML=`
+    <div class="card" style="border-color:var(--green);background:#f1f8e9;margin-top:10px;">
+      <h2 style="margin-top:0;">👔 ${s.nombre||s.email}</h2>
+      <div class="resumen-grid" style="margin-bottom:10px;">
+        <div class="resumen-item"><span class="resumen-ico">✉️</span><div><div class="resumen-label">Correo</div><div class="resumen-val">${s.email}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🔘</span><div><div class="resumen-label">Estado</div><div class="resumen-val">${s.activo===false?"Inactivo":"Activo"}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🏪</span><div><div class="resumen-label">Tiendas a cargo</div><div class="resumen-val">${tiendasDelSup.length}</div></div></div>
+      </div>
+      <div style="font-size:12px;font-weight:800;color:var(--green);margin-bottom:6px;">🌳 Tiendas asignadas</div>
+      ${tiendasDelSup.length?tiendasDelSup.map(([id,t])=>{
+        let inactivo=t.activo===false;
+        let nItems=(t.conteo||[]).length;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #dcedc8;border-left:4px solid var(--green);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+          <div><strong style="font-size:13px;">${t.nombre||id}</strong>${inactivo?' <span style="color:#999;">(inactiva)</span>':''}<br><span style="font-size:10px;color:#777;">PIN: ${t.pin||"—"} · ${nItems} ítem(s) · ${hace(t.updatedAt)}</span></div>
+          <button onclick="tiendaSel='${id}';supervisorSel=null;renderSupervisores();renderTiendas();render();document.getElementById('detalleTienda').scrollIntoView({behavior:'smooth'});" style="font-size:10px;padding:5px 8px;border:1px solid var(--green);border-radius:6px;background:#fff;color:var(--green);cursor:pointer;white-space:nowrap;">Ver →</button>
+        </div>`;
+      }).join(""):'<p class="empty" style="padding:8px 0;">Este supervisor todavía no tiene tiendas asignadas.</p>'}
+    </div>`;
+}
+function abrirModalSupervisor(){document.getElementById('modalSupervisor').style.display='block';document.getElementById('supError').innerText="";}
+function cerrarModalSupervisor(){
+  document.getElementById('modalSupervisor').style.display='none';
+  document.getElementById('nuevoSupNombre').value="";
+  document.getElementById('nuevoSupEmail').value="";
+  document.getElementById('nuevoSupPass').value="";
+}
+function crearSupervisor(){
+  let nombre=document.getElementById('nuevoSupNombre').value.trim();
+  let email=document.getElementById('nuevoSupEmail').value.trim();
+  let pass=document.getElementById('nuevoSupPass').value;
+  let err=document.getElementById('supError');err.innerText="";
+  if(!nombre)return err.innerText="Falta el nombre del supervisor.";
+  if(!email)return err.innerText="Falta el correo del supervisor.";
+  if(pass.length<6)return err.innerText="La contraseña debe tener al menos 6 caracteres.";
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword(email,pass).then(cred=>{
+    let uid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('supervisores').doc(uid).set({
+        nombre,email,activo:true,
+        creadoAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+  }).then(()=>{cerrarModalSupervisor();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese correo ya tiene una cuenta.";
+    else if(e.code==="auth/weak-password")err.innerText="La contraseña debe tener al menos 6 caracteres.";
+    else if(e.code==="auth/invalid-email")err.innerText="Ese correo no es válido.";
+    else err.innerText="No se pudo crear: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+function toggleActivoSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  let nuevo=!(s.activo!==false);
+  if(!confirm(`¿${nuevo?"Reactivar":"Desactivar"} a "${s.nombre||s.email}"?\n\nMientras esté desactivado, no podrá ver ninguna tienda aunque tenga tiendas asignadas.`))return;
+  db.collection('supervisores').doc(uid).update({activo:nuevo});
+}
+function eliminarSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  let nTiendas=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+  let aviso=nTiendas.length?`\n\nSus ${nTiendas.length} tienda(s) asignada(s) quedarán sin supervisor.`:"";
+  if(!confirm(`¿ELIMINAR al supervisor "${s.nombre||s.email}"?${aviso}\n\nSu cuenta de acceso queda huérfana (no podrá ver nada, pero técnicamente el login seguiría existiendo salvo que lo borres también desde Authentication en Firebase).`))return;
+  let batch=db.batch();
+  nTiendas.forEach(([id])=>batch.update(db.collection('tiendas').doc(id),{supervisorEmail:null}));
+  batch.delete(db.collection('supervisores').doc(uid));
+  batch.commit().catch(e=>alert("No se pudo eliminar: "+e.message));
+}
+function resetPasswordSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  if(!confirm(`¿Enviar un correo a ${s.email} para que restablezca su contraseña?`))return;
+  firebase.auth().sendPasswordResetEmail(s.email).then(()=>{
+    alert("✅ Correo de restablecimiento enviado a "+s.email);
+  }).catch(e=>alert("No se pudo enviar: "+e.message));
+}
+function abrirModalEditarSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  document.getElementById('editarSupUid').value=uid;
+  document.getElementById('editarSupNombre').value=s.nombre||"";
+  document.getElementById('editarSupEmail').value="";
+  document.getElementById('editarSupError').innerText="";
+  document.getElementById('modalEditarSup').style.display='block';
+}
+function cerrarModalEditarSup(){document.getElementById('modalEditarSup').style.display='none';}
+function guardarEdicionSupervisor(){
+  let uid=document.getElementById('editarSupUid').value;
+  let s=supervisoresData[uid];if(!s)return;
+  let nombreNuevo=document.getElementById('editarSupNombre').value.trim();
+  let emailNuevo=document.getElementById('editarSupEmail').value.trim();
+  let err=document.getElementById('editarSupError');err.innerText="";
+  if(!nombreNuevo)return err.innerText="El nombre no puede estar vacío.";
+  if(!emailNuevo||emailNuevo===s.email){
+    db.collection('supervisores').doc(uid).update({nombre:nombreNuevo}).then(()=>cerrarModalEditarSup()).catch(e=>err.innerText="No se pudo guardar: "+e.message);
+    return;
+  }
+  let passTemp=Math.random().toString(36).slice(-10)+"Aa1!";
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword(emailNuevo,passTemp).then(cred=>{
+    let nuevoUid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      let batch=db.batch();
+      let tiendasDelSup=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+      tiendasDelSup.forEach(([id])=>batch.update(db.collection('tiendas').doc(id),{supervisorEmail:emailNuevo}));
+      batch.set(db.collection('supervisores').doc(nuevoUid),{nombre:nombreNuevo,email:emailNuevo,activo:true,creadoAt:firebase.firestore.FieldValue.serverTimestamp()});
+      batch.delete(db.collection('supervisores').doc(uid));
+      return batch.commit();
+    }).then(()=>firebase.auth().sendPasswordResetEmail(emailNuevo));
+  }).then(()=>{
+    cerrarModalEditarSup();
+    alert("✅ Listo. Se envió un correo a "+emailNuevo+" para que configure su contraseña.");
+  }).catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese correo ya tiene una cuenta.";
+    else if(e.code==="auth/invalid-email")err.innerText="Ese correo no es válido.";
+    else err.innerText="No se pudo cambiar el correo: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+
+function abrirModalAsignar(id){
+  let d=tiendasData[id];if(!d)return;
+  document.getElementById('asignarTiendaId').value=id;
+  document.getElementById('asignarTiendaNombre').innerText=d.nombre||id;
+  let sel=document.getElementById('asignarSupervisor');
+  if(sel)sel.value=d.supervisorEmail||"";
+  document.getElementById('asignarError').innerText="";
+  document.getElementById('modalAsignar').style.display='block';
+}
+function cerrarModalAsignar(){document.getElementById('modalAsignar').style.display='none';}
+function guardarAsignacion(){
+  let id=document.getElementById('asignarTiendaId').value;
+  let sel=document.getElementById('asignarSupervisor');
+  let supervisorEmail=sel&&sel.value?sel.value:null;
+  db.collection('tiendas').doc(id).update({supervisorEmail}).then(()=>{
+    cerrarModalAsignar();
+  }).catch(e=>document.getElementById('asignarError').innerText="No se pudo asignar: "+e.message);
+}
+function abrirModalEditar(id){
+  let d=tiendasData[id];if(!d)return;
+  document.getElementById('editarTiendaId').value=id;
+  document.getElementById('editarNombre').value=d.nombre||"";
+  document.getElementById('editarPin').value="";
+  document.getElementById('editarError').innerText="";
+  let sel=document.getElementById('editarSupervisor');
+  if(sel)sel.value=d.supervisorEmail||"";
+  document.getElementById('modalEditar').style.display='block';
+}
+function cerrarModalEditar(){document.getElementById('modalEditar').style.display='none';}
+function guardarEdicionTienda(){
+  let id=document.getElementById('editarTiendaId').value;
+  let d=tiendasData[id];if(!d)return;
+  let nombreNuevo=document.getElementById('editarNombre').value.trim();
+  let pinNuevo=document.getElementById('editarPin').value.trim();
+  let err=document.getElementById('editarError');err.innerText="";
+  if(!nombreNuevo)return err.innerText="El nombre no puede estar vacío.";
+  if(pinNuevo && pinNuevo.length<6)return err.innerText="El PIN nuevo debe tener al menos 6 caracteres.";
+  let datosBase={nombre:nombreNuevo};
+  if(esSuperAdmin){
+    let sel=document.getElementById('editarSupervisor');
+    datosBase.supervisorEmail=sel&&sel.value?sel.value:null;
+  }
+  if(!pinNuevo){
+    db.collection('tiendas').doc(id).update(datosBase).then(()=>cerrarModalEditar()).catch(e=>err.innerText="No se pudo guardar: "+e.message);
+    return;
+  }
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword("pin_"+pinNuevo+"@"+DOMINIO_AUTH,pinNuevo).then(cred=>{
+    let nuevoUid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('tiendas').doc(id).update({...datosBase,pin:pinNuevo,uid:nuevoUid});
+    });
+  }).then(()=>{cerrarModalEditar();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese PIN ya está en uso por otra tienda.";
+    else if(e.code==="auth/weak-password")err.innerText="El PIN debe tener al menos 6 caracteres.";
+    else err.innerText="No se pudo cambiar el PIN: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+
+function login(){
+  try{
+    let email=document.getElementById('loginEmail').value.trim();
+    let pass=document.getElementById('loginPass').value;
+    let errBox=document.getElementById('loginError');
+    errBox.style.color="#555";
+    errBox.innerText="Conectando...";
+    firebase.auth().signInWithEmailAndPassword(email,pass).then(()=>{
+      errBox.innerText="";
+    }).catch(err=>{
+      errBox.style.color="var(--red)";
+      errBox.innerText="Error ("+err.code+"): "+err.message;
+    });
+  }catch(e){
+    alert("Error inesperado al tocar Ingresar: "+e.message);
+  }
+}
+function logout(){firebase.auth().signOut();}
+firebase.auth().onAuthStateChanged(user=>{
+  if(user){
+    esSuperAdmin=(user.email===SUPER_ADMIN_EMAIL);
+    miEmail=user.email;
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.querySelectorAll('.solo-superadmin').forEach(el=>el.style.display=esSuperAdmin?'':'none');
+    document.getElementById('rolActual').innerText=esSuperAdmin?'Super-administrador':'Supervisor ('+miEmail+')';
+    document.querySelectorAll('#vistaToggleTiendas button').forEach(b=>b.classList.toggle('on',b.dataset.v===vistaTiendas));
+    document.querySelectorAll('#vistaToggleSup button').forEach(b=>b.classList.toggle('on',b.dataset.v===vistaSup));
+    if(!unsubTiendas){
+      let query=esSuperAdmin?db.collection('tiendas'):db.collection('tiendas').where('supervisorEmail','==',miEmail);
+      unsubTiendas=query.onSnapshot(snap=>{
+        snap.forEach(doc=>{
+          let d=doc.data();
+          if(d.estado==="enviado" && estadosPrevios[doc.id]!=="enviado" && estadosPrevios[doc.id]!==undefined){
+            notificarEnvio(d.nombre||doc.id);
+          }
+          estadosPrevios[doc.id]=d.estado;
+        });
+        tiendasData={};
+        snap.forEach(doc=>{tiendasData[doc.id]=doc.data();});
+        renderTiendas();
+        if(tiendaSel)render();
+      },err=>{document.getElementById('tiendas').innerHTML='<p class="empty">⚠️ No se pudo conectar: '+err.message+'</p>';});
+    }
+    if(esSuperAdmin && !unsubSupervisores){
+      unsubSupervisores=db.collection('supervisores').onSnapshot(snap=>{
+        supervisoresData={};
+        snap.forEach(doc=>{supervisoresData[doc.id]=doc.data();});
+        renderSupervisores();
+        renderSelectSupervisor();
+      },err=>{document.getElementById('supervisores').innerHTML='<p class="empty">⚠️ No se pudo conectar: '+err.message+'</p>';});
+    }
+  }else{
+    document.getElementById('loginBox').style.display='block';
+    document.getElementById('dashboard').style.display='none';
+    if(unsubTiendas){unsubTiendas();unsubTiendas=null;}
+    if(unsubSupervisores){unsubSupervisores();unsubSupervisores=null;}
+  }
+});
+
+function pedirPermisoNotif(){
+  if(!("Notification" in window))return alert("Tu navegador no soporta notificaciones. Igual vas a escuchar un sonido y ver la tienda resaltada arriba cuando envíen un resultado.");
+  Notification.requestPermission().then(p=>{
+    let b=document.getElementById('btnNotif');
+    b.innerText=p==="granted"?"🔔 Avisos activados":"🔕 No activaste el permiso (igual sonará un aviso si dejas esta pestaña abierta)";
+  });
+}
+function notificarEnvio(nombre){
+  try{
+    let ctx=new (window.AudioContext||window.webkitAudioContext)();
+    let o=ctx.createOscillator();let g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=0.15;
+    o.start();setTimeout(()=>{o.stop();ctx.close();},350);
+  }catch(e){}
+  if("Notification" in window && Notification.permission==="granted"){
+    new Notification("📤 "+nombre+" envió su resultado",{body:"Toca para revisarlo en el panel."});
+  }
+}
+function hace(ts){
+  if(!ts||!ts.toDate)return "sin datos aún";
+  let mins=Math.round((Date.now()-ts.toDate().getTime())/60000);
+  if(mins<1)return "justo ahora";
+  if(mins<60)return `hace ${mins} min`;
+  let horas=Math.round(mins/60);
+  if(horas<24)return `hace ${horas}h`;
+  return `hace ${Math.round(horas/24)}d`;
+}
+function renderTiendas(){
+  let box=document.getElementById('tiendas');
+  box.className="tiendas "+vistaTiendas;
+  let ids=Object.keys(tiendasData);
+  if(ids.length===0){box.innerHTML='<p class="empty">Ninguna tienda ha sincronizado todavía.</p>';return;}
+  box.innerHTML="";
+  ids.sort((a,b)=>{
+    let ea=tiendasData[a].estado==="enviado"?0:1,eb=tiendasData[b].estado==="enviado"?0:1;
+    if(ea!==eb)return ea-eb;
+    return (tiendasData[a].nombre||a).localeCompare(tiendasData[b].nombre||b);
+  });
+  ids.forEach(id=>{
+    let d=tiendasData[id];
+    let nItems=(d.conteo||[]).length;
+    let minsAgo=d.updatedAt&&d.updatedAt.toDate?(Date.now()-d.updatedAt.toDate().getTime())/60000:99999;
+    let inactivo=d.activo===false;
+    let enviado=d.estado==="enviado";
+    let dotClass=inactivo?"dot-none":(minsAgo<15?"dot-live":(minsAgo<180?"dot-old":"dot-none"));
+    let card=document.createElement('div');
+    card.className="tienda-card"+(tiendaSel===id?" sel":"");
+    card.style.opacity=inactivo?"0.5":"1";
+    if(enviado && tiendaSel!==id){card.style.borderColor="var(--gold)";card.style.background="#fffde7";}
+    let supNombre=esSuperAdmin?(d.supervisorEmail?(Object.values(supervisoresData).find(s=>s.email===d.supervisorEmail)?.nombre||d.supervisorEmail):"sin supervisor"):null;
+    let metaSup=esSuperAdmin?` · 👔 ${supNombre}`:"";
+    let badgeEnvio=enviado?`<div style="margin-top:4px;font-size:10px;font-weight:800;color:#e65100;">📤 Enviado ${hace(d.enviadoAt)}${d.resumenEnvio?` · 🟢${d.resumenEnvio.verde} 🟡${d.resumenEnvio.amarillo} 🔴${d.resumenEnvio.rojo}`:""}</div>`:"";
+    let btnEliminar=esSuperAdmin?`<button onclick="event.stopPropagation();eliminarTienda('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--red);border-radius:6px;background:#fff;color:var(--red);cursor:pointer;">🗑️ Eliminar</button>`:"";
+    let btnAsignar=esSuperAdmin?`<button onclick="event.stopPropagation();abrirModalAsignar('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #f57f17;border-radius:6px;background:#fff;color:#f57f17;cursor:pointer;">👔 Asignar</button>`:"";
+    card.innerHTML=`<div class="nom"><span class="dot ${dotClass}"></span>${d.nombre||id}${inactivo?" (inactiva)":""}</div><div class="meta">👤 ${d.encargadoActual||"sin dato"} · PIN: ${d.pin||"—"} · ${nItems} ítem(s) · ${hace(d.updatedAt)}${metaSup}</div>${badgeEnvio}<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;"><button onclick="event.stopPropagation();abrirModalEditar('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #1565c0;border-radius:6px;background:#fff;color:#1565c0;cursor:pointer;">✏️ Editar</button>${btnAsignar}<button onclick="event.stopPropagation();toggleActivo('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid rgba(0,0,0,.2);border-radius:6px;background:rgba(255,255,255,.5);cursor:pointer;">${inactivo?"Reactivar":"Desactivar"}</button>${btnEliminar}</div>`;
+    card.onclick=()=>{tiendaSel=id;renderTiendas();render();};
+    box.appendChild(card);
+  });
+}
+
+function semaforoDe(fisica,teorica){
+  if(teorica===undefined||teorica===null)return{color:"gris",pct:null};
+  if(teorica===0)return fisica===0?{color:"verde",pct:0}:{color:"rojo",pct:100};
+  let pct=((fisica-teorica)/teorica)*100,ab=Math.abs(pct);
+  let color=ab<=2?"verde":ab<5?"amarillo":"rojo";
+  return{color,pct};
+}
+function setFiltro(f){filtro=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('on'));document.getElementById('f'+f.charAt(0).toUpperCase()+f.slice(1)).classList.add('on');render();}
+
+function render(){
+  if(!tiendaSel||!tiendasData[tiendaSel]){document.getElementById('detalleTienda').style.display='none';return;}
+  document.getElementById('detalleTienda').style.display='block';
+  let d=tiendasData[tiendaSel];
+  document.getElementById('tituloDetalle').innerText=`📋 ${d.nombre||tiendaSel} — actualizado ${hace(d.updatedAt)}`;
+  let mapaSAPActivo=d.mapaSAP||{};
+  let fuenteBox=document.getElementById('fuenteSAP');
+  if(fuenteBox){
+    fuenteBox.innerHTML=Object.keys(mapaSAPActivo).length>0
+      ?'✅ Mostrando el CSV teórico que la propia tienda cargó.'
+      :'⚪ Esta tienda todavía no cargó su CSV teórico — el semáforo mostrará "sin dato" hasta que lo haga.';
+  }
+  let conteo=d.conteo||[];
+  let filas=conteo.map(x=>{
+    let fisica=parseFloat(x.res)||0;
+    let sap=mapaSAPActivo[x.cod];let teorica=sap?sap.cantidad:undefined;
+    let s=semaforoDe(fisica,teorica);
+    let diff=teorica!==undefined?+(fisica-teorica).toFixed(4):null;
+    return{cod:x.cod,nom:x.nom,fisica,teorica,diff,pct:s.pct,color:s.color};
+  });
+  let cont={verde:0,amarillo:0,rojo:0,gris:0};
+  filas.forEach(x=>cont[x.color]++);
+  document.getElementById('cVerde').innerText=cont.verde;
+  document.getElementById('cAmar').innerText=cont.amarillo;
+  document.getElementById('cRojo').innerText=cont.rojo;
+  document.getElementById('cGris').innerText=cont.gris;
+  document.getElementById('cTotal').innerText=filas.length;
+
+  let resumenBox=document.getElementById('resumenTienda');
+  if(resumenBox){
+    let top10Sobra=filas.filter(x=>x.diff!==null&&x.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,10);
+    let top10Falta=filas.filter(x=>x.diff!==null&&x.diff<0).sort((a,b)=>a.diff-b.diff).slice(0,10);
+    resumenBox.innerHTML=`
+      <div class="resumen-grid">
+        <div class="resumen-item"><span class="resumen-ico">👤</span><div><div class="resumen-label">Encargado</div><div class="resumen-val">${d.encargadoActual||"No informado"}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">📅</span><div><div class="resumen-label">Fecha</div><div class="resumen-val">${d.fechaConteo||"—"}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🏪</span><div><div class="resumen-label">Tienda</div><div class="resumen-val">${d.nombre||tiendaSel}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">📦</span><div><div class="resumen-label">Ítems contados</div><div class="resumen-val">${conteo.length} / ${filas.length}</div></div></div>
+      </div>
+      <div class="top10-wrap">
+        <div class="top10-col top10-sobra">
+          <div class="top10-head">🔼 Top 10 sobrantes</div>
+          <div class="top10-list">${top10Sobra.length?top10Sobra.map(x=>`<div class="top10-item"><span class="top10-nom">${x.nom}</span><span class="top10-val val-pos">+${x.diff.toFixed(3)}</span></div>`).join(""):'<div class="top10-empty">Ninguno</div>'}</div>
+        </div>
+        <div class="top10-col top10-falta">
+          <div class="top10-head">🔽 Top 10 faltantes</div>
+          <div class="top10-list">${top10Falta.length?top10Falta.map(x=>`<div class="top10-item"><span class="top10-nom">${x.nom}</span><span class="top10-val val-neg">${x.diff.toFixed(3)}</span></div>`).join(""):'<div class="top10-empty">Ninguno</div>'}</div>
+        </div>
+      </div>`;
+  }
+  let visibles=filtro==="all"?filas:filas.filter(x=>x.color===filtro);
+  let orden=document.getElementById('orden').value;
+  if(orden==="pctdesc")visibles=[...visibles].sort((a,b)=>(b.pct===null?-1:Math.abs(b.pct))-(a.pct===null?-1:Math.abs(a.pct)));
+  else if(orden==="posdesc")visibles=[...visibles].sort((a,b)=>(b.diff===null?-Infinity:b.diff)-(a.diff===null?-Infinity:a.diff));
+  else if(orden==="negasc")visibles=[...visibles].sort((a,b)=>(a.diff===null?Infinity:a.diff)-(b.diff===null?Infinity:b.diff));
+  else visibles=[...visibles].sort((a,b)=>a.nom.localeCompare(b.nom));
+  const emoji={verde:"🟢",amarillo:"🟡",rojo:"🔴",gris:"⚪"};
+  const tb=document.getElementById('tbodyDetalle');tb.innerHTML="";
+  const frag=document.createDocumentFragment();
+  visibles.forEach(x=>{
+    let tr=document.createElement('tr');
+    if(x.diff!==null&&x.diff>0)tr.classList.add('row-sobra');
+    else if(x.diff!==null&&x.diff<0)tr.classList.add('row-falta');
+    let pctTxt=x.pct===null?"—":(x.pct>0?"+":"")+x.pct.toFixed(1)+"%";
+    let diffTxt=x.diff===null?"—":(x.diff>0?"+":"")+x.diff.toFixed(3);
+    let teoTxt=x.teorica===undefined?"Sin dato":x.teorica.toFixed(3);
+    tr.innerHTML=`<td>${x.cod}</td><td style="text-align:left">${x.nom}</td><td>${x.fisica.toFixed(3)}</td><td>${teoTxt}</td><td>${diffTxt}</td><td>${pctTxt}</td><td>${emoji[x.color]}</td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+// ===== EXPORTAR / COMPARTIR =====
+function exportarPDF(){
+  if(!tiendaSel)return alert("Selecciona una tienda primero.");
+  window.print();
+}
+function capturarYEnviar(){
+  if(!tiendaSel)return alert("Selecciona una tienda primero.");
+  if(typeof html2canvas==="undefined")return alert("No se pudo cargar la herramienta de captura. Revisa tu conexión e intenta de nuevo.");
+  let el=document.getElementById('reporteImprimir');
+  let tienda=tiendasData[tiendaSel];
+  let nombreBase=("Semaforo_"+(tienda?tienda.nombre:tiendaSel)+"_"+new Date().toISOString().slice(0,10)).replace(/[^a-zA-Z0-9_]+/g,"_");
+  html2canvas(el,{backgroundColor:"#ffffff",scale:2}).then(canvas=>{
+    canvas.toBlob(blob=>{
+      if(!blob)return alert("No se pudo generar la imagen.");
+      let file=new File([blob],nombreBase+".png",{type:"image/png"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:"Semáforo "+(tienda?tienda.nombre:tiendaSel),text:"Resultado del semáforo de "+(tienda?tienda.nombre:tiendaSel)}).catch(()=>{});
+      }else{
+        let url=URL.createObjectURL(blob);
+        let a=document.createElement('a');a.href=url;a.download=nombreBase+".png";a.click();
+        alert("Se descargó la imagen (tu navegador no permite abrir el menú de compartir directo aquí). Adjúntala manualmente en tu correo o WhatsApp.");
+      }
+    },"image/png");
+  }).catch(()=>alert("No se pudo capturar la tabla. Intenta de nuevo."));
+}
+</script>
+</body>
+</html>
