@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PJ Inventario — Panel Administrador</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--green:#006747;--green-dk:#00432e;--red:#e31837;--gold:#ffc220;--bg:#f2f3f5;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);padding:8px;margin:0;}
+.container{max-width:900px;margin:0 auto;background:#fff;padding:14px;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.10);}
+.brand-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff;padding:16px 18px;border-radius:12px;margin-bottom:14px;border-bottom:4px solid var(--red);box-shadow:0 4px 14px rgba(0,0,0,.15);}
+.brand-icon{font-size:24px;background:rgba(255,255,255,.15);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-title{font-size:17px;font-weight:800;letter-spacing:.2px;}
+.brand-sub{font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.6px;}
+.login-card{max-width:360px;margin:6px auto;background:#fff;padding:22px 20px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.08);border:1px solid #eee;}
+.login-hint{font-size:12px;color:#666;margin:0 0 16px;text-align:center;}
+.field-label{display:block;font-size:10px;font-weight:800;color:var(--green);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.field-input{width:100%;padding:11px 12px;border-radius:9px;border:1.5px solid #ddd;margin-bottom:14px;font-size:14px;transition:.15s;}
+.field-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(0,103,71,.12);}
+.btn-primary{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 3px 0 var(--green-dk);}
+.btn-primary:active{box-shadow:0 1px 0 var(--green-dk);transform:translateY(2px);}
+.field-error{color:var(--red);font-size:12px;text-align:center;margin:10px 0 0;min-height:14px;font-weight:600;}
+h1{font-size:17px;color:var(--green);text-align:center;margin:4px 0 12px;}
+h2{font-size:14px;color:var(--green);margin:16px 0 8px;font-weight:800;}
+.tiendas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+.tiendas.v-lista{display:flex;flex-direction:column;gap:6px;}
+.tiendas.v-lista .tienda-card{padding:7px 10px;}
+.tiendas.v-lista .tienda-card .nom{font-size:12px;}
+.tiendas.v-lista .tienda-card .meta{font-size:9px;}
+.tiendas.v-detallada{display:flex;flex-direction:column;gap:10px;}
+.tiendas.v-detallada .tienda-card{padding:14px;}
+.tiendas.v-detallada .tienda-card .nom{font-size:15px;}
+.tiendas.v-detallada .tienda-card .meta{font-size:12px;line-height:1.5;}
+.tiendas.v-iconos-grandes{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+.tiendas.v-iconos-grandes .tienda-card{padding:16px;}
+.tiendas.v-iconos-grandes .tienda-card .nom{font-size:16px;}
+.tiendas.v-iconos-grandes .tienda-card .meta{font-size:11px;}
+.vista-toggle{display:flex;gap:4px;justify-content:flex-end;margin-bottom:8px;}
+.vista-toggle button{padding:6px 9px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:13px;cursor:pointer;}
+.vista-toggle button.on{background:var(--green);color:#fff;border-color:var(--green);}
+.tienda-card{border:2px solid #e0e0e0;border-radius:10px;padding:10px;cursor:pointer;transition:.15s;background:#fafafa;}
+.tienda-card:hover{border-color:var(--green);}
+.tienda-card.sel{border-color:var(--green);background:var(--green);color:#fff;}
+.tienda-card .nom{font-weight:800;font-size:13px;}
+.tienda-card .meta{font-size:10px;opacity:.8;margin-top:4px;}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+.dot-live{background:#2e7d32;}
+.dot-old{background:#f9a825;}
+.dot-none{background:#bbb;}
+.card{border:2px solid #e0e0e0;border-radius:12px;padding:12px;margin-top:10px;}
+.file-wrap{border:2px dashed #ccc;border-radius:10px;padding:14px;text-align:center;}
+.file-wrap input{margin-top:8px;width:100%;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}
+.filters button{flex:1;min-width:70px;padding:8px 4px;border:none;border-radius:8px;background:#eee;font-size:11px;font-weight:700;cursor:pointer;}
+.filters button.on{background:var(--green);color:#fff;}
+select{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;font-size:13px;margin-bottom:8px;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;}
+th{background:var(--green);color:#fff;padding:6px 3px;position:sticky;top:0;}
+td{padding:6px 3px;text-align:center;border-bottom:1px solid #eee;}
+tr.row-sobra{background:rgba(46,125,50,.08);}
+tr.row-falta{background:rgba(211,47,47,.08);}
+.empty{text-align:center;color:#999;font-size:12px;padding:20px 0;}
+.legend{display:flex;justify-content:space-around;font-size:10px;font-weight:800;color:#555;margin:6px 0;}
+.resumen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:6px;}
+.resumen-item{display:flex;align-items:flex-start;gap:8px;}
+.resumen-ico{font-size:17px;line-height:1.3;}
+.resumen-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#777;font-weight:800;}
+.resumen-val{font-size:13px;font-weight:700;color:#222;}
+.top10-wrap{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.top10-col{flex:1;min-width:150px;border-radius:10px;padding:10px;}
+.top10-sobra{border-left:4px solid #2e7d32;background:#f1f8e9;}
+.top10-falta{border-left:4px solid #c62828;background:#fdecea;}
+.top10-head{font-size:12px;font-weight:800;margin-bottom:6px;}
+.top10-sobra .top10-head{color:#2e7d32;}
+.top10-falta .top10-head{color:#c62828;}
+.top10-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(0,0,0,.08);}
+.top10-item:last-child{border-bottom:none;}
+.top10-nom{flex:1;font-size:11px;color:#333;line-height:1.3;}
+.top10-val{font-weight:800;font-size:11px;white-space:nowrap;padding:2px 7px;border-radius:6px;}
+.val-pos{color:#1b5e20;background:#c8e6c9;}
+.val-neg{color:#b71c1c;background:#ffcdd2;}
+.top10-empty{font-size:11px;color:#999;font-style:italic;}
+@media print{
+  body *{visibility:hidden;}
+  #reporteImprimir,#reporteImprimir *{visibility:visible;}
+  #reporteImprimir{position:absolute;top:0;left:0;width:100%;padding:10px;}
+  .no-print{display:none!important;}
+}
+</style>
+<style id="pjTema">
+/* ===== TEMA VISUAL (dashboard) ===== */
+body[data-tema="vino"]{--side:#2f0d18;--side2:#4a1427;--ac:#e91e63;--ac2:#c2185b;--fondo:#f7f1f3;--tx:#3a1c27;--g1:linear-gradient(135deg,#ec3f87,#c2185b);--g2:linear-gradient(135deg,#f6a33a,#d9780b);--g3:linear-gradient(135deg,#7a4636,#4a2a20);--g4:linear-gradient(135deg,#8a6be0,#5b3fb5);--g5:linear-gradient(135deg,#27c4b0,#0f8f82);}
+body[data-tema="pj"]{--side:#00432e;--side2:#006747;--ac:#e31837;--ac2:#b3122b;--fondo:#f1f5f2;--tx:#12372a;--g1:linear-gradient(135deg,#0a8a61,#006747);--g2:linear-gradient(135deg,#f0b21a,#d69300);--g3:linear-gradient(135deg,#e8445c,#b3122b);--g4:linear-gradient(135deg,#2f7d6a,#1c5a4a);--g5:linear-gradient(135deg,#5aa88f,#2e7d6a);}
+body{background:var(--fondo,#f2f3f5);color:var(--tx,#222);padding:0;}
+body.logged{padding-left:0;}
+body.logged .container{max-width:none;background:transparent;box-shadow:none;padding:18px 22px 40px;}
+body.logged .brand-bar{display:none;}
+.ocultar-nuevo{display:none!important;}
+#sb{display:none;position:fixed;left:0;top:0;bottom:0;width:236px;background:linear-gradient(180deg,var(--side),var(--side2));color:#fff;flex-direction:column;padding:16px 12px;z-index:900;overflow-y:auto;transition:transform .2s;}
+#sb .lg{display:flex;align-items:center;gap:10px;font-family:Georgia,serif;font-weight:700;font-size:16px;margin:2px 4px 18px;}
+#sb .lg i{font-style:normal;background:linear-gradient(135deg,var(--ac),var(--ac2));width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+#sb .sec{font-size:9px;letter-spacing:1.4px;opacity:.55;margin:14px 8px 6px;font-weight:800;}
+#sb button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:none;color:#fff;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:2px;}
+#sb button:hover{background:rgba(255,255,255,.08);}
+#sb button.on{background:linear-gradient(135deg,var(--ac),var(--ac2));box-shadow:0 4px 12px rgba(0,0,0,.25);}
+#sb .usr{margin-top:auto;background:rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;font-size:11px;}
+#sb .usr b{display:block;font-size:12px;}
+#tb{display:none;position:fixed;top:0;left:0;right:0;height:50px;background:var(--side);color:#fff;align-items:center;gap:10px;padding:0 12px;z-index:880;font-family:Georgia,serif;font-weight:700;}
+#tb button{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:8px;font-size:18px;width:36px;height:34px;}
+body.logged #sb{display:flex;}
+@media(min-width:900px){body.logged{padding-left:236px;}}
+@media(max-width:899px){body.logged{padding-top:50px;}body.logged #tb{display:flex;}#sb{transform:translateX(-100%);}#sb.abierto{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.45);}}
+#hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+#hero .hi{font-family:Georgia,serif;font-size:26px;font-weight:700;color:var(--tx);}
+#hero .fecha{font-size:12px;opacity:.65;margin-top:2px;}
+#hero input{flex:1;min-width:200px;max-width:340px;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(0,0,0,.1);background:#fff;font-size:13px;}
+#kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:16px;}
+.kpi{border-radius:18px;padding:16px 18px;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.14);position:relative;overflow:hidden;}
+.kpi .ic{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:10px;}
+.kpi .t{font-size:11px;opacity:.9;font-weight:600;}.kpi .v{font-size:30px;font-weight:800;line-height:1.15;}.kpi .s{font-size:11px;opacity:.85;}
+.g1{background:var(--g1)!important;}.g2{background:var(--g2)!important;}.g3{background:var(--g3)!important;}.g4{background:var(--g4)!important;}.g5{background:var(--g5)!important;}
+.pnl{background:#fff;border-radius:18px;padding:16px 18px;box-shadow:0 4px 16px rgba(0,0,0,.07);}
+.pnl h3{font-family:Georgia,serif;font-size:15px;margin:0 0 2px;color:var(--tx);}.pnl .sub{font-size:11px;opacity:.6;margin-bottom:10px;}
+#graficos,.dosCol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px;}
+.donutW{display:flex;align-items:center;gap:16px;flex-wrap:wrap;color:var(--tx);}
+.leyenda div{display:flex;justify-content:space-between;gap:18px;font-size:12px;padding:3px 0;}.leyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;}
+.brr{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11px;}.brr .n{flex:0 0 38%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+.brr .b{flex:1;height:9px;background:#f0e9ec;border-radius:6px;overflow:hidden;}.brr .b i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--ac),var(--ac2));}.brr .q{flex:0 0 auto;font-weight:800;min-width:42px;text-align:right;}
+.tiendas .tienda-card{border:none;color:#fff;border-radius:18px;box-shadow:0 8px 18px rgba(0,0,0,.13);transition:.18s;}
+.tiendas .tienda-card:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,0,0,.2);}
+.tiendas .tienda-card.sel{outline:3px solid var(--ac);outline-offset:2px;background-blend-mode:normal;}
+.tiendas .tienda-card .meta{opacity:.92;}
+.tienda-card .pbar{height:6px;background:rgba(255,255,255,.28);border-radius:5px;margin-top:8px;overflow:hidden;}.tienda-card .pbar i{display:block;height:100%;background:#fff;border-radius:5px;}
+.tienda-card .pct{font-size:10px;font-weight:800;margin-top:3px;opacity:.95;}
+#pnlTienda{margin-bottom:14px;}
+#pnlTienda .cab{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;margin-bottom:12px;}#pnlTienda .cab b{font-size:17px;font-family:Georgia,serif;flex:1 0 100%;}
+.pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:10px;font-weight:800;color:#fff;}
+h2{font-family:Georgia,serif;color:var(--tx);}
+#seccionCT>button,#seccionCP>button{display:none!important;}   /* ahora se abren desde el menú lateral */
+.vista-toggle button.on{background:var(--ac)!important;border-color:var(--ac)!important;}
+.btn-primary{background:linear-gradient(135deg,var(--ac),var(--ac2))!important;box-shadow:0 4px 12px rgba(0,0,0,.18)!important;}
+.card{border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.07);}
+
+
+</style>
+<style id="poCss">
+/* ===== FORMATO PDF "Conteo Diario de Inventarios" ===== */
+#poWrap{display:none;}
+.po-pag{width:794px;height:1123px;box-sizing:border-box;padding:30px 38px 26px;background:#fff;color:#000;font:11px/1.25 Calibri,Carlito,Arial,sans-serif;position:relative;overflow:hidden;}
+.po-pag table{border-collapse:collapse;width:100%;}
+.po-cab td{border:1px solid #000;font-weight:700;text-align:center;vertical-align:middle;font-size:11px;padding:3px 4px;}
+.po-cab img{width:150px;height:auto;display:block;margin:0 auto;}
+.po-meta{margin:10px 0 8px;font-size:11px;}.po-meta td{padding:2px 4px;vertical-align:bottom;}.po-meta .l{font-weight:700;text-align:right;white-space:nowrap;}.po-meta .v{border-bottom:1px solid #000;}
+.po-tb th{color:#000;background:#d9d9d9;border:1px solid #000;font-weight:700;font-size:10px;padding:4px 3px;text-align:center;}
+.po-tb td{border:1px solid #000;height:20px;padding:0 4px;font-size:10px;text-align:center;}.po-tb td.d{text-align:left;font-size:9.5px;line-height:1.2;padding-top:1px;padding-bottom:1px;}
+.po-tb td.vs{font-weight:800;color:#222;font-size:10px;letter-spacing:.5px;}
+.po-dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;border:1px solid rgba(0,0,0,.35);}
+.po-firma{display:flex;align-items:flex-end;gap:10px;margin-top:22px;font-weight:700;font-size:11px;}.po-firma .ln{flex:1;border-bottom:1px solid #000;height:18px;}.po-firma .fm{width:210px;border-top:1px solid #000;text-align:center;font-weight:400;padding-top:2px;}
+.po-notas{margin-top:14px;font-size:10px;}.po-notas b{font-style:italic;}
+@media print{
+  @page{size:A4;margin:0;}
+  body.imprimiendoPO>*:not(#poWrap){display:none!important;}
+  body.imprimiendoPO #poWrap{display:block!important;position:static!important;visibility:visible!important;}
+  body.imprimiendoPO #poWrap *{visibility:visible!important;}
+  body.imprimiendoPO .po-pag{page-break-after:always;break-after:page;margin:0;}
+  body.imprimiendoPO .po-pag:last-child{page-break-after:auto;break-after:auto;}
+  body.imprimiendoPO{background:#fff!important;padding:0!important;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="brand-bar">
+    <div class="brand-icon">📡</div>
+    <div>
+      <div class="brand-title">PJ Inventario</div>
+      <div class="brand-sub">Panel de Administrador</div>
+    </div>
+  </div>
+
+  <div id="loginBox" class="login-card">
+    <p class="login-hint">Ingresa con tu cuenta de administrador para ver las tiendas.</p>
+    <label class="field-label">Correo</label>
+    <input type="email" id="loginEmail" class="field-input" placeholder="tucorreo@ejemplo.com">
+    <label class="field-label">Contraseña</label>
+    <input type="password" id="loginPass" class="field-input" placeholder="••••••••">
+    <button onclick="login()" class="btn-primary">Ingresar</button>
+    <p id="loginError" class="field-error"></p>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
+      <span id="rolActual" style="font-size:11px;font-weight:800;color:var(--green);background:#f1f8e9;padding:5px 10px;border-radius:6px;"></span>
+      <button onclick="pedirPermisoNotif()" id="btnNotif" style="flex:1;min-width:150px;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;">🔔 Activar avisos de "resultado enviado"</button>
+      <button onclick="logout()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Cerrar sesión</button>
+    </div>
+
+    <div class="solo-superadmin" id="seccionCT">
+      <button onclick="abrirCargaTiendas()" style="width:100%;padding:12px;background:#ef6c00;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:10px;">🏬 Cargar lista oficial de tiendas (75)</button>
+      <div id="panelCT" class="card" style="display:none;border-color:#ef6c00;">
+        <h2 style="margin-top:0;color:#ef6c00;">🏬 Lista oficial de tiendas</h2>
+        <p style="font-size:12px;color:#555;margin-top:0;">Se crean <b>75 tiendas</b> con su nombre y el <b>PIN = últimos 4 dígitos</b> de su clave (ej. TDA4821 → <b>4821</b>). El supervisor queda anotado como dato de la tienda; las cuentas de supervisor no se crean todavía.</p>
+        <div id="ctResumen" style="font-size:12px;margin-bottom:8px;"></div>
+        <label class="field-label">Para reemplazar las tiendas actuales escribe ELIMINAR</label>
+        <input type="text" id="ctConfirm" class="field-input" placeholder="ELIMINAR" autocomplete="off" style="margin-bottom:8px;">
+        <button id="btnCT1" onclick="ejecutarCargaTiendas(true)" style="width:100%;padding:12px;background:#c62828;color:#fff;border:none;border-radius:8px;font-weight:700;margin-bottom:6px;">🗑 Eliminar las actuales y crear las 75</button>
+        <button id="btnCT2" onclick="ejecutarCargaTiendas(false)" style="width:100%;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;margin-bottom:8px;">➕ Crear solo las que falten (sin eliminar nada)</button>
+        <div id="ctBarra" style="height:10px;background:#eee;border-radius:6px;overflow:hidden;display:none;"><div id="ctBarraIn" style="height:100%;width:0;background:#43a047;"></div></div>
+        <div id="ctLog" style="font-size:11px;max-height:260px;overflow:auto;margin-top:6px;white-space:pre-wrap;"></div>
+        <button onclick="document.getElementById('panelCT').style.display='none'" style="width:100%;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;margin-top:8px;">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="solo-superadmin" id="seccionCP">
+      <button onclick="abrirPanelCP()" style="width:100%;padding:12px;background:#6a1b9a;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:10px;">📅 Conteos programados (todas las tiendas)</button>
+      <div id="panelCP" class="card" style="display:none;border-color:#6a1b9a;">
+        <h2 style="margin-top:0;color:#6a1b9a;">📅 Conteos programados</h2>
+        <p style="font-size:12px;color:#555;margin-top:0;">Sube la lista una sola vez y se publica para <b>todas las tiendas</b> (las actuales y las que crees después). Ellas solo tocan "Cargar lista".</p>
+        <div id="calCP" style="margin-bottom:10px;"></div>
+        <label class="field-label">Nombre del conteo</label>
+        <input type="text" id="cpNombre" class="field-input" placeholder="Ej: Conteo cíclico octubre" style="margin-bottom:8px;">
+        <label class="field-label">Fecha del conteo (toca un día del calendario o elígela aquí)</label>
+        <input type="date" id="cpFecha" class="field-input" style="margin-bottom:8px;">
+        <label class="field-label">Archivo CSV (Código, Nombre, [Categoría UN/KG/L], [Cantidad]) — acepta , o ;</label>
+        <input type="file" id="cpArchivo" class="field-input" onchange="leerArchivoCP(this)" style="margin-bottom:8px;">
+        <button onclick="verificarCP()" style="width:100%;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;margin-bottom:8px;">🔍 Verificar importación</button>
+        <div id="cpResultado" style="font-size:12px;"></div>
+        <button id="btnPublicarCP" onclick="publicarCP()" disabled style="width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:8px;font-weight:700;margin-top:8px;">📤 Publicar a todas las tiendas</button>
+        <p id="cpError" class="field-error"></p>
+        <h2 style="font-size:14px;margin-bottom:6px;">Conteos publicados</h2>
+        <div id="listaCP"><p class="empty">Aún no hay conteos programados.</p></div>
+        <button onclick="document.getElementById('panelCP').style.display='none'" style="width:100%;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;margin-top:8px;">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="solo-superadmin">
+      <h2>👥 Supervisores</h2>
+      <button onclick="abrirModalSupervisor()" style="width:100%;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:10px;">➕ Nuevo Supervisor</button>
+      <div id="vistaToggleSup" class="vista-toggle">
+        <button data-v="v-lista" onclick="setVista('sup','v-lista')" title="Lista">📋</button>
+        <button data-v="v-iconos" onclick="setVista('sup','v-iconos')" title="Iconos">🔲</button>
+        <button data-v="v-detallada" onclick="setVista('sup','v-detallada')" title="Lista detallada">📄</button>
+        <button data-v="v-iconos-grandes" onclick="setVista('sup','v-iconos-grandes')" title="Iconos grandes">🔳</button>
+      </div>
+      <div id="supervisores" class="tiendas"><p class="empty">Conectando...</p></div>
+      <div id="detalleSupervisor" style="display:none;"></div>
+
+      <div id="modalSupervisor" class="card" style="display:none;border-color:#1565c0;">
+        <h2 style="margin-top:0;">➕ Nuevo Supervisor</h2>
+        <input type="text" id="nuevoSupNombre" placeholder="Nombre del supervisor" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <input type="email" id="nuevoSupEmail" placeholder="Correo del supervisor" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <input type="password" id="nuevoSupPass" placeholder="Contraseña (mínimo 6 caracteres)" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="cerrarModalSupervisor()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+          <button onclick="crearSupervisor()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+        </div>
+        <p id="supError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+      </div>
+
+      <div id="modalEditarSup" class="card" style="display:none;border-color:#1565c0;">
+        <h2 style="margin-top:0;">✏️ Editar Supervisor</h2>
+        <input type="hidden" id="editarSupUid">
+        <label class="field-label">Nombre</label>
+        <input type="text" id="editarSupNombre" class="field-input" style="margin-bottom:8px;">
+        <label class="field-label">Nuevo correo (dejar vacío para no cambiarlo)</label>
+        <input type="email" id="editarSupEmail" class="field-input" placeholder="Solo si de verdad cambia de correo" style="margin-bottom:8px;">
+        <p style="font-size:11px;color:#777;margin:0 0 10px;">⚠️ Cambiar el correo crea un acceso nuevo y reasigna automáticamente sus tiendas — el correo anterior deja de servir. Para restablecer solo la contraseña, usa el botón "🔑 Restablecer clave" en su tarjeta en vez de esto.</p>
+        <div style="display:flex;gap:8px;">
+          <button onclick="cerrarModalEditarSup()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+          <button onclick="guardarEdicionSupervisor()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+        </div>
+        <p id="editarSupError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+      </div>
+    </div>
+
+    <h2>🏪 Tiendas</h2>
+    <button onclick="abrirModalTienda()" class="solo-superadmin" style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:10px;">➕ Nueva Tienda</button>
+    <div id="vistaToggleTiendas" class="vista-toggle">
+      <button data-v="v-lista" onclick="setVista('tiendas','v-lista')" title="Lista">📋</button>
+      <button data-v="v-iconos" onclick="setVista('tiendas','v-iconos')" title="Iconos">🔲</button>
+      <button data-v="v-detallada" onclick="setVista('tiendas','v-detallada')" title="Lista detallada">📄</button>
+      <button data-v="v-iconos-grandes" onclick="setVista('tiendas','v-iconos-grandes')" title="Iconos grandes">🔳</button>
+    </div>
+    <div id="tiendas" class="tiendas"><p class="empty">Conectando...</p></div>
+
+    <div id="modalTienda" class="card" style="display:none;border-color:var(--green);">
+      <h2 style="margin-top:0;">➕ Nueva Tienda</h2>
+      <input type="text" id="nuevaTiendaNombre" placeholder="Nombre de la tienda" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+      <input type="tel" id="nuevaTiendaPin" placeholder="PIN de acceso (mínimo 4 caracteres)" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:8px;font-size:13px;">
+      <select id="nuevaTiendaSupervisor" style="margin-bottom:8px;"><option value="">Sin supervisor asignado</option></select>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalTienda()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="crearTienda()" style="flex:1;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="tiendaError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div id="modalEditar" class="card" style="display:none;border-color:#1565c0;">
+      <h2 style="margin-top:0;">✏️ Editar Tienda</h2>
+      <input type="hidden" id="editarTiendaId">
+      <div class="solo-superadmin" style="background:#fffde7;border:1px solid var(--gold);border-radius:8px;padding:8px;margin-bottom:10px;">
+        <label class="field-label">👔 Supervisor asignado</label>
+        <select id="editarSupervisor" style="margin-bottom:0;"><option value="">Sin supervisor asignado</option></select>
+      </div>
+      <label class="field-label">Nombre</label>
+      <input type="text" id="editarNombre" class="field-input" style="margin-bottom:8px;">
+      <label class="field-label">Nuevo PIN (dejar vacío para no cambiarlo)</label>
+      <input type="tel" id="editarPin" class="field-input" placeholder="Mínimo 4 caracteres" style="margin-bottom:8px;">
+      <p style="font-size:11px;color:#777;margin:0 0 10px;">⚠️ Si pones un PIN nuevo, el PIN anterior deja de funcionar de inmediato. El conteo e historial de la tienda no se pierden.</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalEditar()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="guardarEdicionTienda()" style="flex:1;padding:10px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="editarError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div id="modalAsignar" class="card solo-superadmin" style="display:none;border-color:var(--gold);background:#fffde7;">
+      <h2 style="margin-top:0;">👔 Asignar Supervisor</h2>
+      <input type="hidden" id="asignarTiendaId">
+      <p id="asignarTiendaNombre" style="font-weight:700;margin-top:0;"></p>
+      <select id="asignarSupervisor" style="margin-bottom:10px;"><option value="">Sin supervisor asignado</option></select>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cerrarModalAsignar()" style="flex:1;padding:10px;background:#eee;border:none;border-radius:8px;font-weight:700;">Cancelar</button>
+        <button onclick="guardarAsignacion()" style="flex:1;padding:10px;background:#f57f17;color:#fff;border:none;border-radius:8px;font-weight:700;">Guardar</button>
+      </div>
+      <p id="asignarError" style="color:var(--red);font-size:12px;text-align:center;margin-bottom:0;"></p>
+    </div>
+
+    <div class="card" style="border-color:#1565c0;background:#e3f2fd;">
+      <strong style="color:#0d47a1;font-size:12px;">💡 Toca una tienda arriba para ver su conteo y su semáforo. Se actualiza solo, en vivo.</strong>
+    </div>
+
+    <div id="detalleTienda" style="display:none;">
+      <div class="no-print" style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="exportarPDF()" style="flex:1;padding:9px;background:#c62828;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;">🖨️ Exportar PDF</button>
+        <button onclick="capturarYEnviar()" style="flex:1;padding:9px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;">📸 Capturar y enviar</button>
+      </div>
+      <div class="filters no-print">
+        <button class="on" id="fAll" onclick="setFiltro('all')">Todos <span id="cTotal">0</span></button>
+        <button id="fVerde" onclick="setFiltro('verde')">🟢 <span id="cVerde">0</span></button>
+        <button id="fAmar" onclick="setFiltro('amarillo')">🟡 <span id="cAmar">0</span></button>
+        <button id="fRojo" onclick="setFiltro('rojo')">🔴 <span id="cRojo">0</span></button>
+        <button id="fGris" onclick="setFiltro('gris')">⚪ <span id="cGris">0</span></button>
+      </div>
+      <select id="orden" class="no-print" onchange="render()">
+        <option value="pctdesc">Ordenar: mayor diferencia primero (±)</option>
+        <option value="posdesc">Ordenar: mayor SOBRANTE primero (+)</option>
+        <option value="negasc">Ordenar: mayor FALTANTE primero (−)</option>
+        <option value="alpha">Ordenar: alfabético</option>
+      </select>
+
+      <div id="reporteImprimir" style="background:#fff;padding:6px;">
+        <h2 id="tituloDetalle">📋 Detalle</h2>
+        <div id="resumenTienda" style="font-size:12px;background:#f1f8e9;border:1px solid #c5e1a5;border-radius:8px;padding:10px;margin-bottom:8px;"></div>
+        <div id="fuenteSAP" style="font-size:11px;font-weight:700;background:#fff3e0;padding:6px 10px;border-radius:8px;margin-bottom:8px;"></div>
+        <div class="legend"><span>🟢 ≤2%</span><span>🟡 2-5%</span><span>🔴 ≥5%</span><span>⚪ Sin dato</span></div>
+        <table>
+          <thead><tr><th>Cod</th><th style="text-align:left">Producto</th><th>Física</th><th>Teórica</th><th>Dif</th><th>Dif%</th><th>🚦</th></tr></thead>
+          <tbody id="tbodyDetalle"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== PJIO: capa de archivos compatible con navegador, PWA y APK (Capacitor/WebView) =====
+// Orden de intentos al exportar: puente nativo PJNative -> plugins Capacitor -> compartir del sistema (Web Share) -> descarga normal -> ventana de rescate (copiar / mantener presionado).
+const PJIO={
+  esApk:function(){try{return !!(window.PJNative||(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||/; wv\)/.test(navigator.userAgent));}catch(e){return false;}},
+  aB64:function(blob){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=ko;r.readAsDataURL(blob);});},
+  guardar:async function(nombre,mime,dato,textoAyuda){
+    const blob=(dato instanceof Blob)?dato:new Blob([dato],{type:mime});
+    // 1) Puente nativo propio (ver android_kit/MainActivity.java)
+    try{if(window.PJNative&&PJNative.saveBase64){PJNative.saveBase64(nombre,mime,await PJIO.aB64(blob));return "nativo";}}catch(e){}
+    // 2) Plugins de Capacitor (si la APK los incluye)
+    try{
+      const P=(window.Capacitor&&Capacitor.Plugins)||{};
+      if(P.Filesystem&&P.Share){
+        const w=await P.Filesystem.writeFile({path:nombre,data:await PJIO.aB64(blob),directory:"CACHE"});
+        await P.Share.share({title:nombre,url:w.uri,dialogTitle:"Guardar o compartir"});return "capacitor";
+      }
+    }catch(e){if(e&&/cancel/i.test(String(e.message||e)))return "cancelado";}
+    // 3) Menú compartir del sistema (WebView moderno / Chrome móvil)
+    try{
+      const file=new File([blob],nombre,{type:mime});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:nombre});return "share";}
+    }catch(e){if(e&&e.name==="AbortError")return "cancelado";}
+    // 4) Descarga clásica (navegador de escritorio / Chrome)
+    if(!PJIO.esApk()){
+      try{const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u);},1500);return "descarga";}catch(e){}
+    }
+    // 5) Ventana de rescate
+    PJIO.rescate(nombre,mime,blob,dato);return "rescate";
+  },
+  rescate:function(nombre,mime,blob,dato){
+    let old=document.getElementById("pjioRescate");if(old)old.remove();
+    const o=document.createElement("div");o.id="pjioRescate";
+    o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;";
+    const c=document.createElement("div");c.style.cssText="background:#fff;border-radius:12px;padding:14px;width:100%;max-width:420px;max-height:85vh;overflow:auto;font-family:sans-serif;";
+    let h='<b style="color:#006747">'+nombre+'</b><p style="font-size:12px;color:#555;margin:6px 0;">No se pudo abrir el menú de compartir en este dispositivo.</p>';
+    if(mime.indexOf("image/")===0){h+='<img id="pjioImg" style="width:100%;border:1px solid #ccc;border-radius:8px;"><p style="font-size:12px;color:#555;">Mantén presionada la imagen y elige <b>Guardar imagen</b>.</p>';}
+    else{h+='<textarea id="pjioTxt" readonly style="width:100%;height:180px;font-size:11px;"></textarea><button id="pjioCopy" style="width:100%;padding:10px;margin-top:6px;background:#006747;color:#fff;border:none;border-radius:8px;font-weight:700;">📋 Copiar contenido</button><p style="font-size:12px;color:#555;">Pégalo en un correo, nota o WhatsApp para enviártelo.</p>';}
+    h+='<button id="pjioClose" style="width:100%;padding:10px;margin-top:6px;background:#eee;border:none;border-radius:8px;">Cerrar</button>';
+    c.innerHTML=h;o.appendChild(c);document.body.appendChild(o);
+    document.getElementById("pjioClose").onclick=()=>o.remove();
+    if(mime.indexOf("image/")===0){const r=new FileReader();r.onload=()=>{document.getElementById("pjioImg").src=r.result;};r.readAsDataURL(blob);}
+    else{const t=document.getElementById("pjioTxt");t.value=(typeof dato==="string")?dato.replace(/^\uFEFF/,""):"";if(!t.value){blob.text().then(x=>{t.value=x.replace(/^\uFEFF/,"");});}
+      document.getElementById("pjioCopy").onclick=async()=>{try{await navigator.clipboard.writeText(t.value);}catch(e){t.select();try{document.execCommand("copy");}catch(_){}}alert("Copiado.");};}
+  },
+  // Validación de extensión al importar (sin usar accept=".csv", que bloquea el selector en Android WebView)
+  extOk:function(f,lista){const e=((f&&f.name||"").split(".").pop()||"").toLowerCase();if(lista.indexOf(e)>=0)return true;alert("Archivo no válido: "+(f?f.name:"")+"\nUsa: "+lista.join(", ").toUpperCase());return false;}
+};
+</script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA5lkdoaFPAmhPJ9n2mI_Xf04y5vw5i4Z4",
+  authDomain: "pj-inventario.firebaseapp.com",
+  projectId: "pj-inventario",
+  storageBucket: "pj-inventario.firebasestorage.app",
+  messagingSenderId: "3124766868",
+  appId: "1:3124766868:web:412756bb60bfde3a102c81"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DOMINIO_AUTH="pjinventario.local";
+function claveAuth(pin){return String(pin).length<6?String(pin)+"#pjinv":String(pin);}   // PIN corto (4-5): se completa para cumplir el mínimo de Firebase; PIN de 6+ se usa tal cual
+const SUPER_ADMIN_EMAIL="lui.gui.11@hotmail.com";
+
+let tiendasData={}; // id -> doc data
+let supervisoresData={}; // uid -> doc data (solo super-admin)
+let tiendaSel=null;
+let filtro="all";
+let unsubTiendas=null;
+let unsubSupervisores=null;
+let estadosPrevios={};
+let esSuperAdmin=false;
+let miEmail="";
+let vistaTiendas=localStorage.getItem('vista_tiendas')||'v-iconos';
+let vistaSup=localStorage.getItem('vista_sup')||'v-iconos';
+let supervisorSel=null;
+
+function setVista(cual,v){
+  if(cual==='tiendas'){vistaTiendas=v;localStorage.setItem('vista_tiendas',v);}
+  else{vistaSup=v;localStorage.setItem('vista_sup',v);}
+  let toggleId=cual==='tiendas'?'vistaToggleTiendas':'vistaToggleSup';
+  document.querySelectorAll(`#${toggleId} button`).forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(cual==='tiendas')renderTiendas();else renderSupervisores();
+}
+
+function slugTienda(nombre){return nombre.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");}
+function abrirModalTienda(){document.getElementById('modalTienda').style.display='block';document.getElementById('tiendaError').innerText="";}
+function cerrarModalTienda(){document.getElementById('modalTienda').style.display='none';document.getElementById('nuevaTiendaNombre').value="";document.getElementById('nuevaTiendaPin').value="";}
+function crearTienda(){
+  let nombre=document.getElementById('nuevaTiendaNombre').value.trim();
+  let pin=document.getElementById('nuevaTiendaPin').value.trim();
+  let supervisorEmail=document.getElementById('nuevaTiendaSupervisor').value;
+  let err=document.getElementById('tiendaError');err.innerText="";
+  if(!nombre)return err.innerText="Falta el nombre de la tienda.";
+  if(pin.length<4)return err.innerText="El PIN debe tener al menos 4 caracteres.";
+  let slug=slugTienda(nombre);
+  if(!slug)return err.innerText="Nombre inválido.";
+  if(tiendasData[slug])return err.innerText="Ya existe una tienda con ese nombre.";
+  // Usamos una app secundaria de Firebase solo para crear el usuario, así no se cierra tu sesión de admin.
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword("pin_"+pin+"@"+DOMINIO_AUTH,claveAuth(pin)).then(cred=>{
+    let uid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('tiendas').doc(slug).set({
+        nombre,pin,activo:true,uid,supervisorEmail:supervisorEmail||null,
+        conteo:[],extras:[],baseMod:[],mapaStockSistema:{},
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+  }).then(()=>{cerrarModalTienda();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese PIN ya está en uso por otra tienda.";
+    else if(e.code==="auth/weak-password")err.innerText="El PIN debe tener al menos 6 caracteres.";
+    else err.innerText="No se pudo crear: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+function toggleActivo(id){
+  let d=tiendasData[id];if(!d)return;
+  let nuevo=!(d.activo!==false);
+  if(!confirm(`¿${nuevo?"Reactivar":"Desactivar"} "${d.nombre||id}"?`))return;
+  db.collection('tiendas').doc(id).update({activo:nuevo});
+}
+function eliminarTienda(id){
+  let d=tiendasData[id];if(!d)return;
+  if(!confirm(`¿ELIMINAR PERMANENTEMENTE "${d.nombre||id}"?\n\nEsto borra su conteo, historial y configuración de la nube. No se puede deshacer.\n\nEl PIN dejará de funcionar (aunque la cuenta de acceso queda huérfana, no se puede reutilizar el mismo PIN salvo que lo borres también desde Authentication en Firebase).`))return;
+  if(!confirm(`Última confirmación: ¿de verdad eliminar "${d.nombre||id}"?`))return;
+  db.collection('tiendas').doc(id).delete().then(()=>{
+    if(tiendaSel===id){tiendaSel=null;document.getElementById('detalleTienda').style.display='none';}
+  }).catch(e=>alert("No se pudo eliminar: "+e.message));
+}
+
+// ===== SUPERVISORES (solo super-admin) =====
+function renderSelectSupervisor(){
+  let opciones='<option value="">Sin supervisor asignado</option>'+Object.keys(supervisoresData).map(uid=>{
+    let s=supervisoresData[uid];
+    return `<option value="${s.email}">${s.nombre||s.email}${s.activo===false?" (inactivo)":""}</option>`;
+  }).join("");
+  ["nuevaTiendaSupervisor","editarSupervisor","asignarSupervisor"].forEach(elId=>{
+    let el=document.getElementById(elId);
+    if(el){let actual=el.value;el.innerHTML=opciones;el.value=actual;}
+  });
+}
+function renderSupervisores(){
+  let box=document.getElementById('supervisores');if(!box)return;
+  box.className="tiendas "+vistaSup;
+  let ids=Object.keys(supervisoresData);
+  if(ids.length===0){box.innerHTML='<p class="empty">Todavía no has creado ningún supervisor.</p>';return;}
+  box.innerHTML="";
+  ids.sort((a,b)=>(supervisoresData[a].nombre||"").localeCompare(supervisoresData[b].nombre||""));
+  ids.forEach(uid=>{
+    let s=supervisoresData[uid];
+    let inactivo=s.activo===false;
+    let nTiendas=Object.values(tiendasData).filter(t=>t.supervisorEmail===s.email).length;
+    let card=document.createElement('div');
+    card.className="tienda-card"+(supervisorSel===uid?" sel":"");
+    card.style.opacity=inactivo?"0.5":"1";
+    card.innerHTML=`<div class="nom">${s.nombre||s.email}${inactivo?" (inactivo)":""}</div><div class="meta">${s.email} · ${nTiendas} tienda(s)</div><div style="display:flex;gap:4px;margin-top:6px;"><button onclick="event.stopPropagation();abrirModalEditarSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #1565c0;border-radius:6px;background:#fff;color:#1565c0;cursor:pointer;">✏️ Editar</button><button onclick="event.stopPropagation();resetPasswordSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #f9a825;border-radius:6px;background:#fff;color:#f57f17;cursor:pointer;">🔑 Restablecer clave</button></div><div style="display:flex;gap:4px;margin-top:4px;"><button onclick="event.stopPropagation();toggleActivoSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid rgba(0,0,0,.2);border-radius:6px;background:#fff;cursor:pointer;">${inactivo?"Reactivar":"Desactivar"}</button><button onclick="event.stopPropagation();eliminarSupervisor('${uid}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--red);border-radius:6px;background:#fff;color:var(--red);cursor:pointer;">🗑️ Eliminar</button></div>`;
+    card.onclick=()=>{supervisorSel=(supervisorSel===uid?null:uid);renderSupervisores();renderDetalleSupervisor();};
+    box.appendChild(card);
+  });
+  renderDetalleSupervisor();
+}
+function renderDetalleSupervisor(){
+  let box=document.getElementById('detalleSupervisor');if(!box)return;
+  if(!supervisorSel||!supervisoresData[supervisorSel]){box.style.display='none';return;}
+  let s=supervisoresData[supervisorSel];
+  let tiendasDelSup=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+  box.style.display='block';
+  box.innerHTML=`
+    <div class="card" style="border-color:var(--green);background:#f1f8e9;margin-top:10px;">
+      <h2 style="margin-top:0;">👔 ${s.nombre||s.email}</h2>
+      <div class="resumen-grid" style="margin-bottom:10px;">
+        <div class="resumen-item"><span class="resumen-ico">✉️</span><div><div class="resumen-label">Correo</div><div class="resumen-val">${s.email}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🔘</span><div><div class="resumen-label">Estado</div><div class="resumen-val">${s.activo===false?"Inactivo":"Activo"}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🏪</span><div><div class="resumen-label">Tiendas a cargo</div><div class="resumen-val">${tiendasDelSup.length}</div></div></div>
+      </div>
+      <div style="font-size:12px;font-weight:800;color:var(--green);margin-bottom:6px;">🌳 Tiendas asignadas</div>
+      ${tiendasDelSup.length?tiendasDelSup.map(([id,t])=>{
+        let inactivo=t.activo===false;
+        let nItems=unirConteoTienda(t).length;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #dcedc8;border-left:4px solid var(--green);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+          <div><strong style="font-size:13px;">${t.nombre||id}</strong>${inactivo?' <span style="color:#999;">(inactiva)</span>':''}<br><span style="font-size:10px;color:#777;">PIN: ${t.pin||"—"} · ${nItems} ítem(s) · ${hace(t.updatedAt)}</span></div>
+          <button onclick="tiendaSel='${id}';supervisorSel=null;renderSupervisores();renderTiendas();render();document.getElementById('detalleTienda').scrollIntoView({behavior:'smooth'});" style="font-size:10px;padding:5px 8px;border:1px solid var(--green);border-radius:6px;background:#fff;color:var(--green);cursor:pointer;white-space:nowrap;">Ver →</button>
+        </div>`;
+      }).join(""):'<p class="empty" style="padding:8px 0;">Este supervisor todavía no tiene tiendas asignadas.</p>'}
+    </div>`;
+}
+function abrirModalSupervisor(){document.getElementById('modalSupervisor').style.display='block';document.getElementById('supError').innerText="";}
+function cerrarModalSupervisor(){
+  document.getElementById('modalSupervisor').style.display='none';
+  document.getElementById('nuevoSupNombre').value="";
+  document.getElementById('nuevoSupEmail').value="";
+  document.getElementById('nuevoSupPass').value="";
+}
+function crearSupervisor(){
+  let nombre=document.getElementById('nuevoSupNombre').value.trim();
+  let email=document.getElementById('nuevoSupEmail').value.trim();
+  let pass=document.getElementById('nuevoSupPass').value;
+  let err=document.getElementById('supError');err.innerText="";
+  if(!nombre)return err.innerText="Falta el nombre del supervisor.";
+  if(!email)return err.innerText="Falta el correo del supervisor.";
+  if(pass.length<6)return err.innerText="La contraseña debe tener al menos 6 caracteres.";
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword(email,pass).then(cred=>{
+    let uid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('supervisores').doc(uid).set({
+        nombre,email,activo:true,
+        creadoAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+  }).then(()=>{cerrarModalSupervisor();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese correo ya tiene una cuenta.";
+    else if(e.code==="auth/weak-password")err.innerText="La contraseña debe tener al menos 6 caracteres.";
+    else if(e.code==="auth/invalid-email")err.innerText="Ese correo no es válido.";
+    else err.innerText="No se pudo crear: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+function toggleActivoSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  let nuevo=!(s.activo!==false);
+  if(!confirm(`¿${nuevo?"Reactivar":"Desactivar"} a "${s.nombre||s.email}"?\n\nMientras esté desactivado, no podrá ver ninguna tienda aunque tenga tiendas asignadas.`))return;
+  db.collection('supervisores').doc(uid).update({activo:nuevo});
+}
+function eliminarSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  let nTiendas=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+  let aviso=nTiendas.length?`\n\nSus ${nTiendas.length} tienda(s) asignada(s) quedarán sin supervisor.`:"";
+  if(!confirm(`¿ELIMINAR al supervisor "${s.nombre||s.email}"?${aviso}\n\nSu cuenta de acceso queda huérfana (no podrá ver nada, pero técnicamente el login seguiría existiendo salvo que lo borres también desde Authentication en Firebase).`))return;
+  let batch=db.batch();
+  nTiendas.forEach(([id])=>batch.update(db.collection('tiendas').doc(id),{supervisorEmail:null}));
+  batch.delete(db.collection('supervisores').doc(uid));
+  batch.commit().catch(e=>alert("No se pudo eliminar: "+e.message));
+}
+function resetPasswordSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  if(!confirm(`¿Enviar un correo a ${s.email} para que restablezca su contraseña?`))return;
+  firebase.auth().sendPasswordResetEmail(s.email).then(()=>{
+    alert("✅ Correo de restablecimiento enviado a "+s.email);
+  }).catch(e=>alert("No se pudo enviar: "+e.message));
+}
+function abrirModalEditarSupervisor(uid){
+  let s=supervisoresData[uid];if(!s)return;
+  document.getElementById('editarSupUid').value=uid;
+  document.getElementById('editarSupNombre').value=s.nombre||"";
+  document.getElementById('editarSupEmail').value="";
+  document.getElementById('editarSupError').innerText="";
+  document.getElementById('modalEditarSup').style.display='block';
+}
+function cerrarModalEditarSup(){document.getElementById('modalEditarSup').style.display='none';}
+function guardarEdicionSupervisor(){
+  let uid=document.getElementById('editarSupUid').value;
+  let s=supervisoresData[uid];if(!s)return;
+  let nombreNuevo=document.getElementById('editarSupNombre').value.trim();
+  let emailNuevo=document.getElementById('editarSupEmail').value.trim();
+  let err=document.getElementById('editarSupError');err.innerText="";
+  if(!nombreNuevo)return err.innerText="El nombre no puede estar vacío.";
+  if(!emailNuevo||emailNuevo===s.email){
+    db.collection('supervisores').doc(uid).update({nombre:nombreNuevo}).then(()=>cerrarModalEditarSup()).catch(e=>err.innerText="No se pudo guardar: "+e.message);
+    return;
+  }
+  let passTemp=Math.random().toString(36).slice(-10)+"Aa1!";
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword(emailNuevo,passTemp).then(cred=>{
+    let nuevoUid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      let batch=db.batch();
+      let tiendasDelSup=Object.entries(tiendasData).filter(([id,t])=>t.supervisorEmail===s.email);
+      tiendasDelSup.forEach(([id])=>batch.update(db.collection('tiendas').doc(id),{supervisorEmail:emailNuevo}));
+      batch.set(db.collection('supervisores').doc(nuevoUid),{nombre:nombreNuevo,email:emailNuevo,activo:true,creadoAt:firebase.firestore.FieldValue.serverTimestamp()});
+      batch.delete(db.collection('supervisores').doc(uid));
+      return batch.commit();
+    }).then(()=>firebase.auth().sendPasswordResetEmail(emailNuevo));
+  }).then(()=>{
+    cerrarModalEditarSup();
+    alert("✅ Listo. Se envió un correo a "+emailNuevo+" para que configure su contraseña.");
+  }).catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese correo ya tiene una cuenta.";
+    else if(e.code==="auth/invalid-email")err.innerText="Ese correo no es válido.";
+    else err.innerText="No se pudo cambiar el correo: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+
+function abrirModalAsignar(id){
+  let d=tiendasData[id];if(!d)return;
+  document.getElementById('asignarTiendaId').value=id;
+  document.getElementById('asignarTiendaNombre').innerText=d.nombre||id;
+  let sel=document.getElementById('asignarSupervisor');
+  if(sel)sel.value=d.supervisorEmail||"";
+  document.getElementById('asignarError').innerText="";
+  document.getElementById('modalAsignar').style.display='block';
+}
+function cerrarModalAsignar(){document.getElementById('modalAsignar').style.display='none';}
+function guardarAsignacion(){
+  let id=document.getElementById('asignarTiendaId').value;
+  let sel=document.getElementById('asignarSupervisor');
+  let supervisorEmail=sel&&sel.value?sel.value:null;
+  db.collection('tiendas').doc(id).update({supervisorEmail}).then(()=>{
+    cerrarModalAsignar();
+  }).catch(e=>document.getElementById('asignarError').innerText="No se pudo asignar: "+e.message);
+}
+function abrirModalEditar(id){
+  let d=tiendasData[id];if(!d)return;
+  document.getElementById('editarTiendaId').value=id;
+  document.getElementById('editarNombre').value=d.nombre||"";
+  document.getElementById('editarPin').value="";
+  document.getElementById('editarError').innerText="";
+  let sel=document.getElementById('editarSupervisor');
+  if(sel)sel.value=d.supervisorEmail||"";
+  document.getElementById('modalEditar').style.display='block';
+}
+function cerrarModalEditar(){document.getElementById('modalEditar').style.display='none';}
+function guardarEdicionTienda(){
+  let id=document.getElementById('editarTiendaId').value;
+  let d=tiendasData[id];if(!d)return;
+  let nombreNuevo=document.getElementById('editarNombre').value.trim();
+  let pinNuevo=document.getElementById('editarPin').value.trim();
+  let err=document.getElementById('editarError');err.innerText="";
+  if(!nombreNuevo)return err.innerText="El nombre no puede estar vacío.";
+  if(pinNuevo && pinNuevo.length<4)return err.innerText="El PIN nuevo debe tener al menos 4 caracteres.";
+  let datosBase={nombre:nombreNuevo};
+  if(esSuperAdmin){
+    let sel=document.getElementById('editarSupervisor');
+    datosBase.supervisorEmail=sel&&sel.value?sel.value:null;
+  }
+  if(!pinNuevo){
+    db.collection('tiendas').doc(id).update(datosBase).then(()=>cerrarModalEditar()).catch(e=>err.innerText="No se pudo guardar: "+e.message);
+    return;
+  }
+  let secApp=firebase.initializeApp(firebaseConfig,"Secondary_"+Date.now());
+  secApp.auth().createUserWithEmailAndPassword("pin_"+pinNuevo+"@"+DOMINIO_AUTH,claveAuth(pinNuevo)).then(cred=>{
+    let nuevoUid=cred.user.uid;
+    return secApp.auth().signOut().then(()=>secApp.delete()).then(()=>{
+      return db.collection('tiendas').doc(id).update({...datosBase,pin:pinNuevo,uid:nuevoUid});
+    });
+  }).then(()=>{cerrarModalEditar();})
+  .catch(e=>{
+    if(e.code==="auth/email-already-in-use")err.innerText="Ese PIN ya está en uso por otra tienda.";
+    else if(e.code==="auth/weak-password")err.innerText="El PIN debe tener al menos 6 caracteres.";
+    else err.innerText="No se pudo cambiar el PIN: "+e.message;
+    secApp.delete().catch(()=>{});
+  });
+}
+
+function login(){
+  try{
+    let email=document.getElementById('loginEmail').value.trim();
+    let pass=document.getElementById('loginPass').value;
+    let errBox=document.getElementById('loginError');
+    errBox.style.color="#555";
+    errBox.innerText="Conectando...";
+    firebase.auth().signInWithEmailAndPassword(email,pass).then(()=>{
+      errBox.innerText="";
+    }).catch(err=>{
+      errBox.style.color="var(--red)";
+      errBox.innerText="Error ("+err.code+"): "+err.message;
+    });
+  }catch(e){
+    alert("Error inesperado al tocar Ingresar: "+e.message);
+  }
+}
+function logout(){firebase.auth().signOut();}
+firebase.auth().onAuthStateChanged(user=>{
+  if(user){
+    esSuperAdmin=(user.email===SUPER_ADMIN_EMAIL);
+    miEmail=user.email;
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.querySelectorAll('.solo-superadmin').forEach(el=>el.style.display=esSuperAdmin?'':'none');
+    document.getElementById('rolActual').innerText=esSuperAdmin?'Super-administrador':'Supervisor ('+miEmail+')';
+    document.querySelectorAll('#vistaToggleTiendas button').forEach(b=>b.classList.toggle('on',b.dataset.v===vistaTiendas));
+    document.querySelectorAll('#vistaToggleSup button').forEach(b=>b.classList.toggle('on',b.dataset.v===vistaSup));
+    if(!unsubTiendas){
+      let query=esSuperAdmin?db.collection('tiendas'):db.collection('tiendas').where('supervisorEmail','==',miEmail);
+      unsubTiendas=query.onSnapshot(snap=>{
+        snap.forEach(doc=>{
+          let d=doc.data();
+          if(d.estado==="enviado" && estadosPrevios[doc.id]!=="enviado" && estadosPrevios[doc.id]!==undefined){
+            notificarEnvio(d.nombre||doc.id);
+          }
+          estadosPrevios[doc.id]=d.estado;
+        });
+        tiendasData={};
+        snap.forEach(doc=>{tiendasData[doc.id]=doc.data();});
+        refrescarAdmin();
+      },err=>{document.getElementById('tiendas').innerHTML='<p class="empty">⚠️ No se pudo conectar: '+err.message+'</p>';});
+    }
+    if(esSuperAdmin && !unsubSupervisores){
+      unsubSupervisores=db.collection('supervisores').onSnapshot(snap=>{
+        supervisoresData={};
+        snap.forEach(doc=>{supervisoresData[doc.id]=doc.data();});
+        renderSupervisores();
+        renderSelectSupervisor();
+      },err=>{document.getElementById('supervisores').innerHTML='<p class="empty">⚠️ No se pudo conectar: '+err.message+'</p>';});
+    }
+  }else{
+    document.getElementById('loginBox').style.display='block';
+    document.getElementById('dashboard').style.display='none';
+    if(unsubTiendas){unsubTiendas();unsubTiendas=null;}
+    if(unsubSupervisores){unsubSupervisores();unsubSupervisores=null;}
+    if(unsubCP){unsubCP();unsubCP=null;}
+  }
+});
+
+// ===== CONTEOS PROGRAMADOS (super-admin → todas las tiendas) =====
+let cpData={};          // id -> doc
+let cpPendiente=null;   // resultado de la última verificación {csvNorm,total,...}
+let cpTexto="";         // texto crudo del archivo elegido
+let unsubCP=null;
+let calMes=new Date();calMes.setDate(1);
+function hoyISO(){let d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmtFecha(iso){let p=(iso||"").split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:iso;}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function abrirPanelCP(){
+  let p=document.getElementById('panelCP');p.style.display='block';
+  if(!document.getElementById('cpFecha').value)document.getElementById('cpFecha').value=hoyISO();
+  if(!unsubCP){
+    unsubCP=db.collection('conteosProgramados').onSnapshot(snap=>{
+      cpData={};snap.forEach(d=>{cpData[d.id]=d.data();});renderCP();
+    },err=>{document.getElementById('listaCP').innerHTML='<p class="empty">⚠️ '+esc(err.code==="permission-denied"?"Falta permiso en Firestore: actualiza las reglas (ver archivo firestore_reglas_conteos.txt).":err.message)+'</p>';});
+  }
+  renderCP();p.scrollIntoView({behavior:"smooth"});
+}
+// --- lectura robusta: UTF-8 y, si hay caracteres rotos, Windows-1252 (Excel en español) ---
+function leerArchivoCP(inp){
+  const f=inp.files[0];if(!f)return;cpPendiente=null;actualizarBtnPublicar();
+  const ext=(f.name.split('.').pop()||"").toLowerCase();
+  if(["csv","txt"].indexOf(ext)<0){document.getElementById('cpResultado').innerHTML='<span style="color:#c62828">❌ Usa un archivo .csv (en Excel: Guardar como → CSV).</span>';cpTexto="";return;}
+  const r=new FileReader();
+  r.onload=function(e){
+    let t=e.target.result;
+    if(t.indexOf("\uFFFD")>=0){const r2=new FileReader();r2.onload=ev=>{cpTexto=ev.target.result;document.getElementById('cpResultado').innerHTML='Archivo leído ('+esc(f.name)+'). Pulsa <b>Verificar importación</b>.';};r2.readAsText(f,"windows-1252");}
+    else{cpTexto=t;document.getElementById('cpResultado').innerHTML='Archivo leído ('+esc(f.name)+'). Pulsa <b>Verificar importación</b>.';}
+  };
+  r.readAsText(f,"utf-8");
+}
+function cpParseLinea(l,delim){
+  let out=[],cur="",q=false;
+  for(let i=0;i<l.length;i++){let c=l[i];
+    if(q){if(c==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;else if(c===delim){out.push(cur);cur="";}else cur+=c;}
+  out.push(cur);return out;
+}
+function cpCsvCampo(v){return '"'+String(v).replace(/"/g,'""')+'"';}
+function verificarCP(){
+  const box=document.getElementById('cpResultado');cpPendiente=null;actualizarBtnPublicar();
+  document.getElementById('cpError').innerText="";
+  if(!cpTexto){box.innerHTML='<span style="color:#c62828">❌ Primero elige el archivo CSV.</span>';return;}
+  let lineas=cpTexto.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim());
+  if(!lineas.length){box.innerHTML='<span style="color:#c62828">❌ El archivo está vacío.</span>';return;}
+  let muestra=lineas.slice(0,5).join("\n");let nC=(muestra.match(/,/g)||[]).length,nP=(muestra.match(/;/g)||[]).length;
+  let delim=nP>nC?";":",";
+  let mapa=new Map(),invalidas=[],dup=0,catRara=0,conCant=0;
+  lineas.forEach((l,i)=>{
+    let cols=cpParseLinea(l,delim).map(x=>x.trim());
+    while(cols.length>2&&cols[cols.length-1]==="")cols.pop();
+    let cod=(cols[0]||"").replace(/["']/g,"").trim(),nom=(cols[1]||"").replace(/["']/g,"").trim().toUpperCase();
+    if(/^(c[oó]digo|cod)$/i.test(cod))return;                       // encabezado
+    if(!cod||!nom){invalidas.push("Línea "+(i+1)+": falta código o nombre");return;}
+    let cat="",cant="";
+    if(cols.length>=4){cat=cols[2].toUpperCase();cant=cols[3];}
+    else if(cols.length===3){if(/^-?\d+([.,]\d+)?$/.test(cols[2]))cant=cols[2];else cat=cols[2].toUpperCase();}
+    if(cat&&["UN","KG","L"].indexOf(cat)<0)catRara++;
+    if(cant!==""){let n=parseFloat(cant.replace(",","."));if(isNaN(n)){invalidas.push("Línea "+(i+1)+": cantidad no numérica ("+cant+")");return;}cant=String(n);conCant++;}
+    if(mapa.has(cod))dup++;
+    mapa.set(cod,[cod,nom,cat,cant]);
+  });
+  if(mapa.size===0){box.innerHTML='<span style="color:#c62828">❌ No se encontró ningún código válido.</span>'+(invalidas.length?'<br>'+invalidas.slice(0,5).map(esc).join('<br>'):'');return;}
+  let filas=[...mapa.values()];
+  let csvNorm=filas.map(c=>{let a=c.slice();while(a.length>2&&a[a.length-1]==="")a.pop();return a.map(cpCsvCampo).join(",");}).join("\n");
+  if(csvNorm.length>900000){box.innerHTML='<span style="color:#c62828">❌ El archivo es demasiado grande para publicarlo ('+filas.length+' códigos). Divídelo en dos conteos.</span>';return;}
+  cpPendiente={csv:csvNorm,total:filas.length,conCantidad:conCant};
+  let h='<div style="background:#e8f5e9;border:1px solid #81c784;border-radius:8px;padding:8px;">✅ <b>'+filas.length+' códigos válidos</b> (separador detectado: <b>'+(delim===";"?"punto y coma ;":"coma ,")+'</b>)<br>'+conCant+' con cantidad esperada';
+  if(dup)h+='<br>⚠️ '+dup+' código(s) repetido(s): se conservó el último.';
+  if(catRara)h+='<br>⚠️ '+catRara+' con categoría distinta de UN/KG/L (la app las revisará).';
+  if(invalidas.length)h+='<br>⚠️ '+invalidas.length+' línea(s) omitida(s):<br><span style="color:#c62828">'+invalidas.slice(0,5).map(esc).join('<br>')+(invalidas.length>5?'<br>…':'')+'</span>';
+  h+='</div><table style="width:100%;font-size:11px;margin-top:6px;border-collapse:collapse;"><tr style="background:#6a1b9a;color:#fff;"><th style="padding:3px;">Código</th><th>Producto</th><th>Cat</th><th>Cant</th></tr>'+
+    filas.slice(0,8).map(c=>'<tr><td style="padding:3px;border-bottom:1px solid #eee;">'+esc(c[0])+'</td><td style="border-bottom:1px solid #eee;">'+esc(c[1])+'</td><td style="border-bottom:1px solid #eee;">'+esc(c[2])+'</td><td style="border-bottom:1px solid #eee;">'+esc(c[3])+'</td></tr>').join("")+
+    '</table>'+(filas.length>8?'<p style="color:#666;margin:2px 0;">… y '+(filas.length-8)+' más</p>':'');
+  box.innerHTML=h;actualizarBtnPublicar();
+}
+function actualizarBtnPublicar(){let b=document.getElementById('btnPublicarCP');if(!b)return;b.disabled=!cpPendiente;b.style.background=cpPendiente?'#2e7d32':'#9e9e9e';}
+function publicarCP(){
+  const err=document.getElementById('cpError');err.innerText="";
+  let nombre=document.getElementById('cpNombre').value.trim(),fecha=document.getElementById('cpFecha').value;
+  if(!cpPendiente)return err.innerText="Primero pulsa 'Verificar importación'.";
+  if(!nombre)return err.innerText="Escribe el nombre del conteo.";
+  if(!fecha)return err.innerText="Elige la fecha del conteo.";
+  let nTi=Object.values(tiendasData).filter(t=>t.activo!==false).length;
+  if(!confirm(`¿Publicar "${nombre}" para el ${fmtFecha(fecha)}?\n${cpPendiente.total} códigos · ${nTi} tienda(s) activa(s).`))return;
+  db.collection('conteosProgramados').add({nombre:nombre,fecha:fecha,csv:cpPendiente.csv,total:cpPendiente.total,conCantidad:cpPendiente.conCantidad,activo:true,creadoPor:miEmail,creadoAt:firebase.firestore.FieldValue.serverTimestamp()})
+  .then(()=>{alert("✅ Publicado. Las tiendas lo verán al ingresar o al tocar 🔄 Sincronizar.");cpPendiente=null;cpTexto="";document.getElementById('cpArchivo').value="";document.getElementById('cpNombre').value="";document.getElementById('cpResultado').innerHTML="";actualizarBtnPublicar();})
+  .catch(e=>{err.innerText=e.code==="permission-denied"?"Sin permiso en Firestore: agrega las reglas de 'conteosProgramados' (archivo firestore_reglas_conteos.txt).":"No se pudo publicar: "+e.message;});
+}
+function estadoCP(c){let h=hoyISO();return !c.activo?["Pausado","#757575"]:c.fecha>h?["Programado","#1565c0"]:c.fecha===h?["Hoy","#2e7d32"]:["Vencido","#e65100"];}
+function renderCP(){
+  const box=document.getElementById('listaCP');if(!box)return;
+  let ids=Object.keys(cpData).sort((a,b)=>(cpData[b].fecha||"").localeCompare(cpData[a].fecha||""));
+  let tiendasAct=Object.entries(tiendasData).filter(([id,t])=>t.activo!==false);
+  box.innerHTML=ids.length?"":'<p class="empty">Aún no hay conteos programados.</p>';
+  ids.forEach(id=>{
+    let c=cpData[id],[et,col]=estadoCP(c);
+    let cargaron=tiendasAct.filter(([tid,t])=>(t.cpCargados||[]).indexOf(id)>=0);
+    let el=document.createElement('div');el.style.cssText="border:1px solid #ddd;border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;";
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:6px;"><b>${esc(c.nombre)}</b><span style="background:${col};color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;">${et}</span></div>
+      <div style="color:#555;">📅 ${fmtFecha(c.fecha)} · ${c.total} códigos</div>
+      <div>${cargaron.length===tiendasAct.length&&tiendasAct.length>0?"✅":"⏳"} Cargado en <b>${cargaron.length}/${tiendasAct.length}</b> tienda(s)</div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button onclick="verCumplimientoCP('${id}')" style="flex:1;padding:6px;font-size:11px;border:1px solid #1565c0;color:#1565c0;background:#fff;border-radius:6px;">🔍 Ver cumplimiento</button>
+        <button onclick="toggleCP('${id}')" style="flex:1;padding:6px;font-size:11px;border:1px solid #f57f17;color:#f57f17;background:#fff;border-radius:6px;">${c.activo?"⏸ Pausar":"▶️ Activar"}</button>
+        <button onclick="eliminarCP('${id}')" style="flex:1;padding:6px;font-size:11px;border:1px solid #c62828;color:#c62828;background:#fff;border-radius:6px;">🗑 Eliminar</button>
+      </div><div id="cum_${id}"></div>`;
+    box.appendChild(el);
+  });
+  renderCalCP();
+}
+function verCumplimientoCP(id){
+  let d=document.getElementById('cum_'+id);if(d.innerHTML){d.innerHTML="";return;}
+  let filas=Object.entries(tiendasData).filter(([k,t])=>t.activo!==false).map(([k,t])=>{let ok=(t.cpCargados||[]).indexOf(id)>=0;return `<div>${ok?"✅":"⏳"} ${esc(t.nombre||k)}${ok?"":" — pendiente"}</div>`;});
+  d.innerHTML='<div style="margin-top:6px;background:#f5f5f5;border-radius:6px;padding:6px;">'+(filas.join("")||"Sin tiendas activas")+'</div>';
+}
+function toggleCP(id){db.collection('conteosProgramados').doc(id).update({activo:!cpData[id].activo});}
+function eliminarCP(id){if(confirm('¿Eliminar "'+cpData[id].nombre+'"? Las tiendas que aún no lo cargaron ya no lo verán.'))db.collection('conteosProgramados').doc(id).delete();}
+// --- calendario mensual ---
+function renderCalCP(){
+  const cont=document.getElementById('calCP');if(!cont)return;
+  let y=calMes.getFullYear(),m=calMes.getMonth();
+  let meses=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  let primero=new Date(y,m,1).getDay(),dias=new Date(y,m+1,0).getDate(),sel=document.getElementById('cpFecha').value,hoy=hoyISO();
+  let marcados={};Object.values(cpData).forEach(c=>{if(c.fecha)marcados[c.fecha]=(marcados[c.fecha]||0)+1;});
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><button onclick="cambiarMesCP(-1)" style="border:none;background:#eee;border-radius:6px;padding:4px 12px;">◀</button><b>${meses[m]} ${y}</b><button onclick="cambiarMesCP(1)" style="border:none;background:#eee;border-radius:6px;padding:4px 12px;">▶</button></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:12px;">`;
+  ["D","L","M","M","J","V","S"].forEach(x=>h+=`<div style="font-weight:700;color:#6a1b9a;">${x}</div>`);
+  for(let i=0;i<primero;i++)h+="<div></div>";
+  for(let d=1;d<=dias;d++){
+    let iso=y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    let st="padding:6px 0;border-radius:6px;border:1px solid "+(iso===sel?"#6a1b9a":"transparent")+";background:"+(iso===sel?"#ede7f6":iso===hoy?"#fff8e1":"#fff")+";";
+    h+=`<div onclick="elegirDiaCP('${iso}')" style="${st}cursor:pointer;">${d}${marcados[iso]?'<div style="font-size:8px;color:#6a1b9a;line-height:6px;">●'+(marcados[iso]>1?marcados[iso]:'')+'</div>':''}</div>`;
+  }
+  cont.innerHTML=h+"</div>";
+}
+function cambiarMesCP(n){calMes=new Date(calMes.getFullYear(),calMes.getMonth()+n,1);renderCalCP();}
+function elegirDiaCP(iso){document.getElementById('cpFecha').value=iso;renderCalCP();}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='cpFecha')renderCalCP();});
+
+// Con muchas tiendas actualizando a la vez, el panel se redibuja como máximo cada 4 s (más fluido y gasta menos batería)
+let _admT=null,_admUlt=0;
+function refrescarAdmin(){
+  const hacer=()=>{_admT=null;_admUlt=Date.now();renderTiendas();if(typeof renderCP==='function'&&esSuperAdmin)renderCP();if(tiendaSel)render();};
+  if(!_admT&&Date.now()-_admUlt>900){hacer();return;}
+  if(!_admT)_admT=setTimeout(hacer,900);
+}
+function unirConteoTienda(d){
+  let a=d.conteo||[],b=d.conteo2||[];if(!b.length)return a;
+  let m=new Map();
+  a.concat(b).forEach(x=>{let p=m.get(x.cod);if(p){m.set(x.cod,Object.assign({},p,{res:String(+((parseFloat(p.res)||0)+(parseFloat(x.res)||0)).toFixed(4))}));}else m.set(x.cod,x);});
+  return [...m.values()];
+}
+function contadoresActivos(d){return Object.values(d.contadores||{}).filter(c=>c&&c.activo&&(Date.now()-(c.lastSeen||0))<90000).sort((a,b)=>(a.rol||0)-(b.rol||0));}
+// ===== CARGA OFICIAL DE TIENDAS (super-admin) =====
+const TIENDAS_OFICIALES=[["Alfonso Ugarte", "Dulce Correa", "TDA4821"], ["Aramburu", "Luigi Diaz", "TDA1904"], ["Aviacion San Borja", "Gabriel Chavez", "TDA8362"], ["Barranco", "Luigi Diaz", "TDA5129"], ["Bellavista FC", "Jonathan Ortega", "TDA7403"], ["Bellavista IL", "Jonathan Ortega", "TDA2618"], ["Benavides 20", "Gabriel Chavez", "TDA9045"], ["Benavides 49", "Gabriel Chavez", "TDA3781"], ["Bolivar", "Vivian Montejo", "TDA6254"], ["Boulevard Magdalena", "Leslie Espinoza", "TDA1497"], ["Camacho", "Gabriel Chavez", "TDA8032"], ["Canada", "Vivian Montejo", "TDA5671"], ["Mall Plaza Cayma", "Cesar Morales", "TDA2389"], ["Cencosud La Molina", "Eduardo Suarez", "TDA9514"], ["Cerro Colorado", "Cesar Morales", "TDA4163"], ["Chimu", "Sergio Carrasco", "TDA7820"], ["Chorrillos", "Luigi Diaz", "TDA3095"], ["Centro Civico", "Dulce Correa", "TDA6418"], ["El Polo", "Gabriel Chavez", "TDA8752"], ["Espinar", "Luigi Diaz", "TDA1246"], ["Faucett", "Vivian Montejo", "TDA5930"], ["Quinde Ica", "Sergio Carrasco", "TDA2804"], ["Jesus Maria", "Vivian Montejo", "TDA7168"], ["Jockey Plaza", "Eduardo Suarez", "TDA4391"], ["Marina", "Vivian Montejo", "TDA9625"], ["La Rambla", "Leslie Espinoza", "TDA1853"], ["Las Flores SJL", "Sergio Carrasco", "TDA6074"], ["Lurin", "Eduardo Suarez", "TDA3419"], ["Magdalena", "Leslie Espinoza", "TDA8240"], ["Mall Aventura Plaza Arequipa", "Cesar Morales", "TDA5736"], ["Mall Aventura Chiclayo", "Maria Jose Perez", "TDA2981"], ["Mall Plaza Comas", "Lourdes Ramirez", "TDA9107"], ["Mall Del Sur", "Luigi Diaz", "TDA4652"], ["Santa Anita", "Sergio Carrasco", "TDA7328"], ["Mall Aventura San Juan de Lurigancho", "Sergio Carrasco", "TDA1564"], ["Mega Chorrillos", "Luigi Diaz", "TDA8941"], ["Mercaderes Arequipa", "Cesar Morales", "TDA3209"], ["Militar", "Vivian Montejo", "TDA6715"], ["Minka", "Jonathan Ortega", "TDA2483"], ["Miotta", "Luigi Diaz", "TDA5037"], ["Olivos", "Lourdes Ramirez", "TDA9372"], ["Open Plaza Huancayo", "Jonathan Ortega", "TDA1628"], ["Palmeras", "Lourdes Ramirez", "TDA4890"], ["Ves Placita", "Eduardo Suarez", "TDA7516"], ["Plaza Norte Fc", "Dulce Correa", "TDA3142"], ["Plaza Sol Piura", "Maria Jose Perez", "TDA8605"], ["Plaza Vea Miraflores", "Leslie Espinoza", "TDA2759"], ["Proceres", "Luigi Diaz", "TDA6381"], ["Proceres SJL", "Sergio Carrasco", "TDA5294"], ["Real Plaza Puruchuco", "Sergio Carrasco", "TDA1063"], ["Real Plaza Cajamarca", "Cesar Morales", "TDA9427"], ["Real Plaza Chiclayo", "Maria Jose Perez", "TDA3810"], ["Real Plaza Huancayo", "Jonathan Ortega", "TDA7235"], ["Repsol La Molina", "Eduardo Suarez", "TDA4581"], ["Plaza Center Rex", "Dulce Correa", "TDA8196"], ["Royal Plaza", "Dulce Correa", "TDA2043"], ["Real Plaza Arequipa", "Cesar Morales", "TDA6918"], ["Real Plaza Cusco", "Cesar Morales", "TDA5362"], ["Real Plaza Piura", "Maria Jose Perez", "TDA1705"], ["Real Plaza Pro", "Lourdes Ramirez", "TDA8471"], ["Saenz Peña", "Jonathan Ortega", "TDA3958"], ["Salamanca", "Vivian Montejo", "TDA7624"], ["Real Plaza Salaverry", "Leslie Espinoza", "TDA4109"], ["San Borja 400", "Gabriel Chavez", "TDA9832"], ["Plaza San Miguel", "Jonathan Ortega", "TDA2570"], ["Santa Clara", "Sergio Carrasco", "TDA6143"], ["Tomas Valle", "Dulce Correa", "TDA8307"], ["Torre Mont Colique", "Lourdes Ramirez", "TDA1954"], ["Trujillo", "Maria Jose Perez", "TDA5421"], ["Ucayali", "Dulce Correa", "TDA3768"], ["Valle Hermoso", "Gabriel Chavez", "TDA7092"], ["Plaza Vea Ventanilla", "Lourdes Ramirez", "TDA2845"], ["Villa Maria del Triunfo", "Eduardo Suarez", "TDA6510"], ["Pro", "Lourdes Ramirez", "TDA1099"], ["La Molina", "Eduardo Suarez", "TDA2411"]];
+function abrirCargaTiendas(){
+  if(!esSuperAdmin)return alert("Solo el super-administrador puede hacer esto.");
+  document.getElementById('panelCT').style.display='block';
+  let n=Object.keys(tiendasData).length;
+  document.getElementById('ctResumen').innerHTML='Tiendas actuales en el sistema: <b>'+n+'</b>'+(n?' (se eliminarán con su conteo si usas el botón rojo)':'')+'<br>Tiendas de la lista oficial: <b>'+TIENDAS_OFICIALES.length+'</b>';
+  document.getElementById('ctConfirm').value="";
+  document.getElementById('panelCT').scrollIntoView({behavior:"smooth"});
+}
+const _esperar=ms=>new Promise(r=>setTimeout(r,ms));
+async function _crearOReusarCuenta(secApp,email,pass){
+  for(let intento=0;intento<4;intento++){
+    try{
+      let c=await secApp.auth().createUserWithEmailAndPassword(email,pass);
+      let uid=c.user.uid;await secApp.auth().signOut();return uid;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){            // cuenta de un intento anterior: se reutiliza
+        let c=await secApp.auth().signInWithEmailAndPassword(email,pass);
+        let uid=c.user.uid;await secApp.auth().signOut();return uid;
+      }
+      if(e.code==="auth/too-many-requests"||e.code==="auth/network-request-failed"){await _esperar(8000);continue;}
+      throw e;
+    }
+  }
+  throw new Error("Firebase limitó las solicitudes; vuelve a intentar en unos minutos.");
+}
+let _ctCorriendo=false;
+async function ejecutarCargaTiendas(reemplazar){
+  if(!esSuperAdmin||_ctCorriendo)return;
+  const log=document.getElementById('ctLog'),barra=document.getElementById('ctBarra'),bin=document.getElementById('ctBarraIn');
+  const pr=t=>{log.textContent+=t+"\n";log.scrollTop=log.scrollHeight;};
+  if(reemplazar){
+    if(document.getElementById('ctConfirm').value.trim().toUpperCase()!=="ELIMINAR")return alert("Escribe ELIMINAR para confirmar que quieres borrar las tiendas actuales.");
+    let n=Object.keys(tiendasData).length;
+    if(!confirm("Se ELIMINARÁN "+n+" tienda(s) actuales con todo su conteo y se crearán "+TIENDAS_OFICIALES.length+" nuevas.\nEsto no se puede deshacer. ¿Continuar?"))return;
+  }else if(!confirm("Se crearán las tiendas de la lista que todavía no existan. No se elimina nada. ¿Continuar?"))return;
+  _ctCorriendo=true;["btnCT1","btnCT2"].forEach(i=>document.getElementById(i).disabled=true);
+  log.textContent="";barra.style.display="block";bin.style.width="0";
+  let ok=0,omitidas=0,fallos=[],secApp=null;
+  try{
+    if(reemplazar){
+      let ids=Object.keys(tiendasData);pr("Eliminando "+ids.length+" tienda(s) actuales...");
+      for(let i=0;i<ids.length;i+=400){let b=db.batch();ids.slice(i,i+400).forEach(id=>b.delete(db.collection('tiendas').doc(id)));await b.commit();}
+      pr("✅ Eliminadas.");
+    }
+    secApp=firebase.initializeApp(firebaseConfig,"Carga_"+Date.now());
+    for(let i=0;i<TIENDAS_OFICIALES.length;i++){
+      let [nombre,sup,clave]=TIENDAS_OFICIALES[i],pin=clave.slice(-4),slug=slugTienda(nombre);
+      bin.style.width=Math.round((i/TIENDAS_OFICIALES.length)*100)+"%";
+      if(!reemplazar&&tiendasData[slug]){omitidas++;pr("↷ "+nombre+": ya existe, se omite.");continue;}
+      try{
+        let uid=await _crearOReusarCuenta(secApp,"pin_"+pin+"@"+DOMINIO_AUTH,claveAuth(pin));
+        await db.collection('tiendas').doc(slug).set({nombre:nombre,pin:pin,activo:true,uid:uid,supervisorEmail:null,supervisorNombre:sup,claveTienda:clave,conteo:[],extras:[],baseMod:[],mapaStockSistema:{},updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+        ok++;pr("✅ "+nombre+" · PIN "+pin);
+      }catch(e){fallos.push(nombre+" ("+pin+"): "+(e.code||e.message));pr("❌ "+nombre+" · PIN "+pin+": "+(e.code||e.message));}
+      await _esperar(350);
+    }
+  }catch(e){pr("❌ Error general: "+(e.code||e.message));fallos.push("general: "+(e.message||e.code));}
+  try{if(secApp)await secApp.delete();}catch(e){}
+  bin.style.width="100%";
+  pr("\n===== RESULTADO =====\nCreadas: "+ok+" · Omitidas: "+omitidas+" · Con error: "+fallos.length+(fallos.length?"\n"+fallos.join("\n")+"\n\nPuedes pulsar 'Crear solo las que falten' para reintentar.":""));
+  _ctCorriendo=false;["btnCT1","btnCT2"].forEach(i=>document.getElementById(i).disabled=false);
+}
+
+function pedirPermisoNotif(){
+  if(!("Notification" in window))return alert("Tu navegador no soporta notificaciones. Igual vas a escuchar un sonido y ver la tienda resaltada arriba cuando envíen un resultado.");
+  Notification.requestPermission().then(p=>{
+    let b=document.getElementById('btnNotif');
+    b.innerText=p==="granted"?"🔔 Avisos activados":"🔕 No activaste el permiso (igual sonará un aviso si dejas esta pestaña abierta)";
+  });
+}
+function notificarEnvio(nombre){
+  try{
+    let ctx=new (window.AudioContext||window.webkitAudioContext)();
+    let o=ctx.createOscillator();let g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=0.15;
+    o.start();setTimeout(()=>{o.stop();ctx.close();},350);
+  }catch(e){}
+  if("Notification" in window && Notification.permission==="granted"){
+    new Notification("📤 "+nombre+" envió su resultado",{body:"Toca para revisarlo en el panel."});
+  }
+}
+function hace(ts){
+  if(!ts||!ts.toDate)return "sin datos aún";
+  let mins=Math.round((Date.now()-ts.toDate().getTime())/60000);
+  if(mins<1)return "justo ahora";
+  if(mins<60)return `hace ${mins} min`;
+  let horas=Math.round(mins/60);
+  if(horas<24)return `hace ${horas}h`;
+  return `hace ${Math.round(horas/24)}d`;
+}
+function renderTiendas(){
+  let box=document.getElementById('tiendas');
+  box.className="tiendas "+vistaTiendas;
+  let ids=Object.keys(tiendasData);
+  if(ids.length===0){box.innerHTML='<p class="empty">Ninguna tienda ha sincronizado todavía.</p>';return;}
+  box.innerHTML="";
+  ids.sort((a,b)=>{
+    let ea=tiendasData[a].estado==="enviado"?0:1,eb=tiendasData[b].estado==="enviado"?0:1;
+    if(ea!==eb)return ea-eb;
+    return (tiendasData[a].nombre||a).localeCompare(tiendasData[b].nombre||b);
+  });
+  ids.forEach(id=>{
+    let d=tiendasData[id];
+    let nItems=unirConteoTienda(d).length;
+    let minsAgo=d.updatedAt&&d.updatedAt.toDate?(Date.now()-d.updatedAt.toDate().getTime())/60000:99999;
+    let inactivo=d.activo===false;
+    let enviado=d.estado==="enviado";
+    let dotClass=inactivo?"dot-none":(minsAgo<15?"dot-live":(minsAgo<180?"dot-old":"dot-none"));
+    let card=document.createElement('div');card.dataset.id=id;
+    card.className="tienda-card"+(tiendaSel===id?" sel":"");
+    card.style.opacity=inactivo?"0.5":"1";
+    if(enviado && tiendaSel!==id){card.style.borderColor="var(--gold)";card.style.background="#fffde7";}
+    let supNombre=esSuperAdmin?(d.supervisorEmail?(Object.values(supervisoresData).find(s=>s.email===d.supervisorEmail)?.nombre||d.supervisorEmail):"sin supervisor"):null;
+    let metaSup=esSuperAdmin?` · 👔 ${supNombre}`:"";
+    let badgeEnvio=enviado?`<div style="margin-top:4px;font-size:10px;font-weight:800;color:#e65100;">📤 Enviado ${hace(d.enviadoAt)}${d.resumenEnvio?` · 🟢${d.resumenEnvio.verde} 🟡${d.resumenEnvio.amarillo} 🔴${d.resumenEnvio.rojo}`:""}</div>`:"";
+    let btnEliminar=esSuperAdmin?`<button onclick="event.stopPropagation();eliminarTienda('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--red);border-radius:6px;background:#fff;color:var(--red);cursor:pointer;">🗑️ Eliminar</button>`:"";
+    let btnAsignar=esSuperAdmin?`<button onclick="event.stopPropagation();abrirModalAsignar('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #f57f17;border-radius:6px;background:#fff;color:#f57f17;cursor:pointer;">👔 Asignar</button>`:"";
+    card.innerHTML=`<div class="nom"><span class="dot ${dotClass}"></span>${d.nombre||id}${inactivo?" (inactiva)":""}</div><div class="meta">👤 ${d.encargadoActual||"sin dato"} · PIN: ${d.pin||"—"} · ${nItems} ítem(s) · ${hace(d.updatedAt)}${metaSup}</div>${badgeEnvio}<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;"><button onclick="event.stopPropagation();abrirModalEditar('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid #1565c0;border-radius:6px;background:#fff;color:#1565c0;cursor:pointer;">✏️ Editar</button>${btnAsignar}<button onclick="event.stopPropagation();toggleActivo('${id}')" style="flex:1;font-size:10px;padding:4px 6px;border:1px solid rgba(0,0,0,.2);border-radius:6px;background:rgba(255,255,255,.5);cursor:pointer;">${inactivo?"Reactivar":"Desactivar"}</button>${btnEliminar}</div>`;
+    card.onclick=()=>{tiendaSel=id;renderTiendas();render();};
+    box.appendChild(card);
+  });
+}
+
+function semaforoDe(fisica,teorica){
+  if(teorica===undefined||teorica===null)return{color:"gris",pct:null};
+  if(teorica===0)return fisica===0?{color:"verde",pct:0}:{color:"rojo",pct:100};
+  let pct=((fisica-teorica)/teorica)*100,ab=Math.abs(pct);
+  let color=ab<=2?"verde":ab<5?"amarillo":"rojo";
+  return{color,pct};
+}
+function setFiltro(f){filtro=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('on'));document.getElementById('f'+f.charAt(0).toUpperCase()+f.slice(1)).classList.add('on');render();}
+
+function render(){
+  if(!tiendaSel||!tiendasData[tiendaSel]){document.getElementById('detalleTienda').style.display='none';return;}
+  document.getElementById('detalleTienda').style.display='block';
+  let d=tiendasData[tiendaSel];
+  document.getElementById('tituloDetalle').innerText=`📋 ${d.nombre||tiendaSel} — actualizado ${hace(d.updatedAt)}`;
+  let mapaSAPActivo=d.mapaSAP||{};
+  let fuenteBox=document.getElementById('fuenteSAP');
+  if(fuenteBox){
+    fuenteBox.innerHTML=Object.keys(mapaSAPActivo).length>0
+      ?'✅ Mostrando el CSV teórico que la propia tienda cargó.'
+      :'⚪ Esta tienda todavía no cargó su CSV teórico — el semáforo mostrará "sin dato" hasta que lo haga.';
+  }
+  let conteo=unirConteoTienda(d);
+  let filas=conteo.map(x=>{
+    let fisica=parseFloat(x.res)||0;
+    let sap=mapaSAPActivo[x.cod];let teorica=sap?sap.cantidad:undefined;
+    let s=semaforoDe(fisica,teorica);
+    let diff=teorica!==undefined?+(fisica-teorica).toFixed(4):null;
+    return{cod:x.cod,nom:x.nom,fisica,teorica,diff,pct:s.pct,color:s.color};
+  });
+  let cont={verde:0,amarillo:0,rojo:0,gris:0};
+  filas.forEach(x=>cont[x.color]++);
+  document.getElementById('cVerde').innerText=cont.verde;
+  document.getElementById('cAmar').innerText=cont.amarillo;
+  document.getElementById('cRojo').innerText=cont.rojo;
+  document.getElementById('cGris').innerText=cont.gris;
+  document.getElementById('cTotal').innerText=filas.length;
+
+  let resumenBox=document.getElementById('resumenTienda');
+  if(resumenBox){
+    let top10Sobra=filas.filter(x=>x.diff!==null&&x.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,10);
+    let top10Falta=filas.filter(x=>x.diff!==null&&x.diff<0).sort((a,b)=>a.diff-b.diff).slice(0,10);
+    resumenBox.innerHTML=`
+      <div class="resumen-grid">
+        <div class="resumen-item"><span class="resumen-ico">👤</span><div><div class="resumen-label">Encargado</div><div class="resumen-val">${d.encargadoActual||"No informado"}</div></div></div>
+        ${contadoresActivos(d).length?`<div class="resumen-item"><span class="resumen-ico">👥</span><div><div class="resumen-label">Contando ahora (${contadoresActivos(d).length})</div><div class="resumen-val">${contadoresActivos(d).map(c=>`<span style="color:${c.rol===2?"#2e7d32":"#1565c0"}">●</span> ${String(c.nombre||"").replace(/</g,"&lt;")}`).join(" · ")}</div></div></div>`:""}
+        <div class="resumen-item"><span class="resumen-ico">📅</span><div><div class="resumen-label">Fecha</div><div class="resumen-val">${d.fechaConteo||"—"}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">🏪</span><div><div class="resumen-label">Tienda</div><div class="resumen-val">${d.nombre||tiendaSel}</div></div></div>
+        <div class="resumen-item"><span class="resumen-ico">📦</span><div><div class="resumen-label">Ítems contados</div><div class="resumen-val">${conteo.length} / ${filas.length}</div></div></div>
+      </div>
+      <div class="top10-wrap">
+        <div class="top10-col top10-sobra">
+          <div class="top10-head">🔼 Top 10 sobrantes</div>
+          <div class="top10-list">${top10Sobra.length?top10Sobra.map(x=>`<div class="top10-item"><span class="top10-nom">${x.nom}</span><span class="top10-val val-pos">+${x.diff.toFixed(3)}</span></div>`).join(""):'<div class="top10-empty">Ninguno</div>'}</div>
+        </div>
+        <div class="top10-col top10-falta">
+          <div class="top10-head">🔽 Top 10 faltantes</div>
+          <div class="top10-list">${top10Falta.length?top10Falta.map(x=>`<div class="top10-item"><span class="top10-nom">${x.nom}</span><span class="top10-val val-neg">${x.diff.toFixed(3)}</span></div>`).join(""):'<div class="top10-empty">Ninguno</div>'}</div>
+        </div>
+      </div>`;
+  }
+  let visibles=filtro==="all"?filas:filas.filter(x=>x.color===filtro);
+  let orden=document.getElementById('orden').value;
+  if(orden==="pctdesc")visibles=[...visibles].sort((a,b)=>(b.pct===null?-1:Math.abs(b.pct))-(a.pct===null?-1:Math.abs(a.pct)));
+  else if(orden==="posdesc")visibles=[...visibles].sort((a,b)=>(b.diff===null?-Infinity:b.diff)-(a.diff===null?-Infinity:a.diff));
+  else if(orden==="negasc")visibles=[...visibles].sort((a,b)=>(a.diff===null?Infinity:a.diff)-(b.diff===null?Infinity:b.diff));
+  else visibles=[...visibles].sort((a,b)=>a.nom.localeCompare(b.nom));
+  const emoji={verde:"🟢",amarillo:"🟡",rojo:"🔴",gris:"⚪"};
+  const tb=document.getElementById('tbodyDetalle');tb.innerHTML="";
+  const frag=document.createDocumentFragment();
+  visibles.forEach(x=>{
+    let tr=document.createElement('tr');
+    if(x.diff!==null&&x.diff>0)tr.classList.add('row-sobra');
+    else if(x.diff!==null&&x.diff<0)tr.classList.add('row-falta');
+    let pctTxt=x.pct===null?"—":(x.pct>0?"+":"")+x.pct.toFixed(1)+"%";
+    let diffTxt=x.diff===null?"—":(x.diff>0?"+":"")+x.diff.toFixed(3);
+    let teoTxt=x.teorica===undefined?"Sin dato":x.teorica.toFixed(3);
+    tr.innerHTML=`<td>${x.cod}</td><td style="text-align:left">${x.nom}</td><td>${x.fisica.toFixed(3)}</td><td>${teoTxt}</td><td>${diffTxt}</td><td>${pctTxt}</td><td>${emoji[x.color]}</td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+// ===== EXPORTAR / COMPARTIR =====
+function poDatosAdmin(){
+  let d=tiendasData[tiendaSel];if(!d)return null;
+  let mapa=d.mapaSAP||{},filas=[],vistos=new Set();
+  unirConteoTienda(d).forEach(x=>{vistos.add(x.cod);let fisica=parseFloat(x.res)||0,sap=mapa[x.cod],teorica=sap?sap.cantidad:undefined,sm=semaforoDe(fisica,teorica);
+    filas.push({cod:x.cod,nom:x.nom,fisica:fisica,teorica:teorica,diff:teorica!==undefined?+(fisica-teorica).toFixed(4):null,color:sm.color});});
+  Object.keys(mapa).forEach(cod=>{if(vistos.has(cod))return;let t=mapa[cod].cantidad,sm=semaforoDe(0,t);filas.push({cod:cod,nom:mapa[cod].nom||mapa[cod].descripcion||cod,fisica:0,teorica:t,diff:+(0-t).toFixed(4),color:sm.color});});
+  filas.sort((x,y)=>String(x.nom).localeCompare(String(y.nom)));
+  let n=new Date();
+  return{tienda:d.nombre||tiendaSel,marca:"PAPA JOHNS",dia:poFechaTxt(d.fechaConteo),hora:poFechaTxt(d.fechaConteo)+" "+String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0"),filas:filas};
+}
+function exportarPDF(){if(!tiendaSel)return alert("Selecciona una tienda primero.");poExportar(poDatosAdmin());}
+function capturarYEnviar(){if(!tiendaSel)return alert("Selecciona una tienda primero.");poExportar(poDatosAdmin());}
+
+// ===== DASHBOARD VISUAL (solo presentación: no cambia la lógica) =====
+(function(){
+  document.body.dataset.tema=localStorage.getItem('pj_tema')||'vino';
+  const sb=document.createElement('aside');sb.id='sb';
+  sb.innerHTML='<div class="lg"><i>🍕</i><span>PJ Inventario<br><small style="font:600 10px sans-serif;opacity:.6">Panel de control</small></span></div>'+
+   '<div class="sec">PRINCIPAL</div><button class="on" data-a="top">📊 Dashboard</button><button data-a="tiendas">🏬 Tiendas</button>'+
+   '<div class="sec solo-superadmin">GESTIÓN</div><button class="solo-superadmin" data-a="cp">📅 Conteos programados</button><button class="solo-superadmin" data-a="ct">🏗️ Cargar tiendas</button><button class="solo-superadmin" data-a="sup">👔 Supervisores</button>'+
+   '<div class="sec">AJUSTES</div><button data-a="notif">🔔 Avisos de envío</button><button data-a="tema">🎨 Cambiar tema</button>'+
+   '<div class="usr"><b id="sbNom">—</b><span id="sbRol"></span><button data-a="salir" style="margin-top:8px;background:rgba(255,255,255,.12)">🚪 Cerrar sesión</button></div>';
+  document.body.prepend(sb);
+  const tb=document.createElement('div');tb.id='tb';tb.innerHTML='<button id="tbMenu">☰</button><span>🍕 PJ Inventario</span>';document.body.prepend(tb);
+  document.getElementById('tbMenu').onclick=()=>sb.classList.toggle('abierto');
+  const ir=id=>{let e=document.getElementById(id);if(e)e.scrollIntoView({behavior:'smooth',block:'start'});};
+  sb.addEventListener('click',e=>{
+    let b=e.target.closest('button[data-a]');if(!b)return;let a=b.dataset.a;
+    if(a==='top')window.scrollTo({top:0,behavior:'smooth'});
+    else if(a==='tiendas')ir('vistaToggleTiendas');
+    else if(a==='cp'){abrirPanelCP();}
+    else if(a==='ct'){abrirCargaTiendas();}
+    else if(a==='sup')ir('vistaToggleSup');
+    else if(a==='notif')pedirPermisoNotif();
+    else if(a==='tema'){let t=document.body.dataset.tema==='vino'?'pj':'vino';document.body.dataset.tema=t;localStorage.setItem('pj_tema',t);renderDash();}
+    else if(a==='salir')logout();
+    sb.querySelectorAll('button.on').forEach(x=>x.classList.remove('on'));if(['top','tiendas','sup'].includes(a))b.classList.add('on');
+    sb.classList.remove('abierto');
+  });
+})();
+const COL_EST={env:'#f5b301',vivo:'#2ea66b',rec:'#f08a24',sin:'#b9aeb2'};
+function _mins(d){return d.updatedAt&&d.updatedAt.toDate?(Date.now()-d.updatedAt.toDate().getTime())/60000:99999;}
+function _estado(d){if(d.estado==='enviado')return 'env';let m=_mins(d);return d.activo===false?'sin':(m<15?'vivo':(m<180?'rec':'sin'));}
+function _tot(d){return d.nProd||(d.extras||[]).length||0;}
+function _pct(d){let t=_tot(d);return t?Math.min(100,Math.round(unirConteoTienda(d).length/t*100)):null;}
+function donutSVG(parts,size,hole,centro,sub){
+  let tot=parts.reduce((a,p)=>a+p.v,0)||1,r=size/2-hole/2-2,c=2*Math.PI*r,off=0,h=size/2;
+  let seg=parts.filter(p=>p.v>0).map(p=>{let l=p.v/tot*c,x='<circle r="'+r+'" cx="'+h+'" cy="'+h+'" fill="none" stroke="'+p.c+'" stroke-width="'+hole+'" stroke-dasharray="'+l+' '+(c-l)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 '+h+' '+h+')"/>';off+=l;return x;}).join('');
+  return '<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'"><circle r="'+r+'" cx="'+h+'" cy="'+h+'" fill="none" stroke="#f0e9ec" stroke-width="'+hole+'"/>'+seg+'<text x="'+h+'" y="'+(h+size/22)+'" text-anchor="middle" font-size="'+size/6+'" font-weight="800" fill="currentColor">'+centro+'</text><text x="'+h+'" y="'+(h+size/7)+'" text-anchor="middle" font-size="'+size/15+'" fill="#999">'+sub+'</text></svg>';
+}
+function _ley(parts){return '<div class="leyenda">'+parts.map(p=>'<div><span><i style="background:'+p.c+'"></i>'+p.l+'</span><b>'+p.v+'</b></div>').join('')+'</div>';}
+function renderDash(){
+  let dash=document.getElementById('dashboard');if(!dash||dash.style.display==='none')return;
+  document.body.classList.add('logged');
+  if(!document.getElementById('hero')){
+    let fila=dash.firstElementChild;if(fila)fila.classList.add('ocultar-nuevo');
+    let h=document.createElement('div');h.id='hero';h.innerHTML='<div><div class="hi" id="hiTxt"></div><div class="fecha" id="hiFecha"></div></div><input id="qTienda" placeholder="🔍 Buscar tienda, encargado o supervisor..." oninput="filtrarTiendas()">';
+    let k=document.createElement('div');k.id='kpis';
+    let g=document.createElement('div');g.id='graficos';
+    dash.prepend(g);dash.prepend(k);dash.prepend(h);
+  }
+  let ids=Object.keys(tiendasData),L=ids.map(i=>tiendasData[i]);
+  let nom=esSuperAdmin?'Administrador':((Object.values(supervisoresData).find(s=>s.email===miEmail)||{}).nombre||'Supervisor');
+  let hr=new Date().getHours();
+  document.getElementById('hiTxt').textContent=(hr<12?'Buenos días':hr<19?'Buenas tardes':'Buenas noches')+', '+nom+' 👋';
+  document.getElementById('hiFecha').textContent=new Date().toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+ids.length+' tienda(s) a tu cargo';
+  document.getElementById('sbNom').textContent=nom;document.getElementById('sbRol').textContent=(document.getElementById('rolActual')||{}).innerText||'';
+  let c={env:0,vivo:0,rec:0,sin:0};L.forEach(d=>c[_estado(d)]++);
+  let items=L.reduce((a,d)=>a+unirConteoTienda(d).length,0),pc=L.map(_pct).filter(x=>x!==null),prom=pc.length?Math.round(pc.reduce((a,b)=>a+b,0)/pc.length):0;
+  let activas=L.filter(d=>d.activo!==false).length;
+  document.getElementById('kpis').innerHTML=
+   '<div class="kpi g1"><div class="ic">🏬</div><div class="t">Tiendas</div><div class="v">'+ids.length+'</div><div class="s">'+activas+' activas</div></div>'+
+   '<div class="kpi g2"><div class="ic">🟢</div><div class="t">Contando ahora</div><div class="v">'+c.vivo+'</div><div class="s">actividad en los últimos 15 min</div></div>'+
+   '<div class="kpi g3"><div class="ic">📦</div><div class="t">Productos contados</div><div class="v">'+items.toLocaleString('es-PE')+'</div><div class="s">avance promedio '+prom+'%</div></div>'+
+   '<div class="kpi g4"><div class="ic">📤</div><div class="t">Resultados enviados</div><div class="v">'+c.env+'</div><div class="s">de '+ids.length+' tienda(s)</div></div>';
+  let parts=[{l:'Enviado',v:c.env,c:COL_EST.env},{l:'Contando ahora',v:c.vivo,c:COL_EST.vivo},{l:'Actividad reciente (<3 h)',v:c.rec,c:COL_EST.rec},{l:'Sin actividad',v:c.sin,c:COL_EST.sin}];
+  let rank=ids.map(i=>({n:tiendasData[i].nombre||i,p:_pct(tiendasData[i]),i:unirConteoTienda(tiendasData[i]).length})).sort((a,b)=>((b.p==null?-1:b.p)-(a.p==null?-1:a.p))||b.i-a.i).slice(0,8);
+  document.getElementById('graficos').innerHTML=
+   '<div class="pnl"><h3>Estado de las tiendas</h3><div class="sub">Qué está pasando ahora mismo</div><div class="donutW">'+donutSVG(parts,150,26,ids.length,'tiendas')+_ley(parts)+'</div></div>'+
+   '<div class="pnl"><h3>Avance por tienda</h3><div class="sub">Las 8 con más avance</div>'+(rank.map(r=>'<div class="brr"><span class="n">'+r.n+'</span><span class="b"><i style="width:'+(r.p==null?Math.min(100,r.i):r.p)+'%"></i></span><span class="q">'+(r.p==null?r.i+' ít.':r.p+'%')+'</span></div>').join('')||'<div class="empty">Sin datos aún</div>')+'</div>';
+}
+function decorarTarjetas(){
+  document.querySelectorAll('#tiendas .tienda-card').forEach((cd,i)=>{
+    cd.classList.remove('g1','g2','g3','g4','g5');cd.classList.add('g'+(i%5+1));
+    let d=tiendasData[cd.dataset.id];if(!d||cd.querySelector('.pbar'))return;
+    let p=_pct(d);cd.insertAdjacentHTML('beforeend','<div class="pbar"><i style="width:'+(p||0)+'%"></i></div><div class="pct">'+(p==null?'avance sin dato':p+'% de avance')+'</div>');
+  });
+}
+function filtrarTiendas(){let q=(document.getElementById('qTienda').value||'').toLowerCase();document.querySelectorAll('#tiendas .tienda-card').forEach(c=>{c.style.display=c.textContent.toLowerCase().includes(q)?'':'none';});}
+function panelTienda(){
+  let det=document.getElementById('detalleTienda');if(!det||!tiendaSel||!tiendasData[tiendaSel])return;
+  let p=document.getElementById('pnlTienda');if(!p){p=document.createElement('div');p.id='pnlTienda';det.prepend(p);}
+  let d=tiendasData[tiendaSel],L=unirConteoTienda(d),tot=_tot(d),pc=_pct(d),est=_estado(d);
+  let etq={env:['Enviado',COL_EST.env],vivo:['Contando',COL_EST.vivo],rec:['Actividad reciente',COL_EST.rec],sin:['Sin actividad',COL_EST.sin]}[est];
+  let con=Object.values(d.contadores||{}).filter(x=>x&&x.activo&&Date.now()-(x.lastSeen||0)<90000);
+  let sup=d.supervisorNombre||(Object.values(supervisoresData).find(s=>s.email===d.supervisorEmail)||{}).nombre||'sin asignar';
+  let top=L.slice().sort((a,b)=>(parseFloat(b.res)||0)-(parseFloat(a.res)||0)).slice(0,10),mx=Math.max(1,...top.map(x=>parseFloat(x.res)||0));
+  let falt=Math.max(0,tot-L.length),parts=[{l:'Contados',v:L.length,c:COL_EST.vivo},{l:'Faltan',v:falt,c:COL_EST.sin}];
+  p.innerHTML='<div class="pnl"><div class="cab"><b>'+(d.nombre||tiendaSel)+' <span class="pill" style="background:'+etq[1]+'">'+etq[0]+'</span></b>'+
+   '<span>👤 <b style="all:unset;font-weight:700">'+(d.encargadoActual||'sin dato')+'</b></span><span>👔 '+sup+'</span><span>🕒 '+hace(d.updatedAt)+'</span><span>👥 '+(con.length?con.map(x=>'<span style="color:'+(x.rol===2?'#2e7d32':'#1565c0')+'">●</span> '+(x.nombre||'')).join(' · '):'nadie conectado')+'</span>'+(esSuperAdmin?'<span>🔑 PIN '+(d.pin||'—')+'</span>':'')+'</div>'+
+   '<div class="dosCol"><div><h3>Avance del conteo</h3><div class="donutW">'+donutSVG(parts,130,22,pc==null?L.length:pc+'%',pc==null?'ítems':'avance')+_ley(parts)+'</div></div>'+
+   '<div><h3>Top 10 más contados</h3><div class="sub">Por cantidad</div>'+(top.map(x=>'<div class="brr"><span class="n" title="'+x.nom+'">'+x.nom+'</span><span class="b"><i style="width:'+Math.round((parseFloat(x.res)||0)/mx*100)+'%"></i></span><span class="q">'+x.res+'</span></div>').join('')||'<div class="empty">Aún no hay productos contados</div>')+'</div></div></div>';
+}
+(function(){
+  const rt=renderTiendas;renderTiendas=function(){rt();decorarTarjetas();renderDash();};
+  const rd=render;render=function(){rd();panelTienda();};
+  const lo=logout;logout=function(){document.body.classList.remove('logged');lo();};
+})();
+</script>
+<script>
+// ===== FORMATO PDF "Conteo Diario de Inventarios" (físico VS SAP) =====
+const PO_LOGO="data:image/jpeg;base64,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";
+const PO_COL={verde:"#2eae5f",amarillo:"#f2c200",rojo:"#e03131",gris:"#cfcfcf"};
+function poNum(v,signo){
+  if(v===null||v===undefined||isNaN(v))return "—";
+  let n=+v,t=Math.abs(n-Math.round(n))<1e-9?String(Math.round(n)):n.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+  return (signo&&n>0?"+":"")+t;
+}
+function poEsc(t){return String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+function poFechaTxt(f){if(f&&/^\d{4}-\d{2}-\d{2}$/.test(f)){let p=f.split("-");return p[2]+"/"+p[1]+"/"+p[0];}let d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();}
+function poPaginas(d){
+  const POR=30,filas=d.filas||[],N=Math.max(1,Math.ceil(filas.length/POR));
+  let ult=filas.length-(N-1)*POR,total=ult>22?N+1:N,out="";
+  const meta='<table class="po-meta"><tr><td class="l" style="width:11%">Tienda:</td><td class="v" style="width:42%">'+poEsc(d.tienda)+'</td><td class="l" style="width:12%">Marca:</td><td class="v">'+poEsc(d.marca||"PAPA JOHNS")+'</td></tr><tr><td class="l">Al inventario del día:</td><td class="v">'+poEsc(d.dia)+'</td><td class="l">Fecha y hora del conteo:</td><td class="v">'+poEsc(d.hora||"")+'</td></tr></table>';
+  const cab=i=>'<table class="po-cab"><tr><td rowspan="4" style="width:25%"><img src="'+PO_LOGO+'" alt=""></td><td style="width:45%">FORMATO</td><td style="width:30%">Versión: 003</td></tr><tr><td rowspan="3">Conteo Diario de Inventarios</td><td>Ref.: POL-DAF-AUD-003</td></tr><tr><td>Código: FRM-DAF-AUD-001</td></tr><tr><td>Página '+i+' de '+total+'</td></tr></table>';
+  const th='<tr><th style="width:5%">N°</th><th style="width:11%">Código SAP</th><th>Descripción SKU</th><th style="width:11%">1er Conteo<br>(físico)</th><th style="width:5%">vs</th><th style="width:11%">Stock<br>SAP</th><th style="width:9%">Dif.</th><th style="width:5%">Sem.</th><th style="width:17%">2do Conteo<br><span style="font-weight:400;font-size:8px">(solo si hay error en el 1er conteo)</span></th></tr>';
+  const pie='<div class="po-firma"><span>Colaborador(es) que efectuó(aron) el conteo</span><span class="ln"></span><span class="fm">Firma</span></div><div class="po-firma" style="margin-top:26px"><span>Gerente de Tienda que refrenda el conteo</span><span class="ln"></span><span class="fm">Firma</span></div><div class="po-notas"><div><b>Nota 1:</b> Para registrar los conteos en este formato se debe utilizar lapicero (no lápiz).</div><div><b>Nota 2:</b> Los datos consignados en este formato tienen valor de Declaración Jurada para los firmantes.</div><div><b>Nota 3:</b> En caso de NO utilizar los campos del 2do conteo, deben tachar estos campos no utilizados para evitar su utilización posterior.</div></div>';
+  for(let p=0;p<total;p++){
+    let tr="",fs=filas.slice(p*POR,(p+1)*POR);
+    fs.forEach((x,k)=>{
+      tr+='<tr><td>'+(p*POR+k+1)+'</td><td>'+poEsc(x.cod)+'</td><td class="d">'+poEsc(x.nom)+'</td><td><b>'+poNum(x.fisica)+'</b></td><td class="vs">vs</td><td>'+(x.teorica===undefined?"—":poNum(x.teorica))+'</td><td>'+(x.diff===null||x.diff===undefined?"—":poNum(x.diff,true))+'</td><td><span class="po-dot" style="background:'+PO_COL[x.color||"gris"]+'"></span></td><td></td></tr>';
+    });
+    out+='<div class="po-pag">'+cab(p+1)+meta+'<table class="po-tb">'+th+tr+'</table>'+(p===total-1?pie:"")+'</div>';
+  }
+  return out;
+}
+function poApk(){return typeof PJIO!=='undefined'&&PJIO.esApk();}
+function poGuardar(nombre,mime,blob){if(typeof PJIO!=='undefined')return PJIO.guardar(nombre,mime,blob);let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u);},1500);}
+function poContenedor(){let c=document.getElementById('poWrap');if(!c){c=document.createElement('div');c.id='poWrap';document.body.appendChild(c);}return c;}
+function poExportar(d){
+  if(!d||!d.filas||!d.filas.length)return alert("No hay productos contados ni datos de SAP para exportar todavía.");
+  let c=poContenedor();c.innerHTML=poPaginas(d);
+  let nombre=("Conteo_"+d.tienda+"_"+d.dia.replace(/\//g,"-")).replace(/[^a-zA-Z0-9_\-]+/g,"_");
+  if(!poApk()){   // computador / navegador: se imprime o guarda como PDF desde el diálogo
+    document.body.classList.add('imprimiendoPO');
+    const fin=()=>{document.body.classList.remove('imprimiendoPO');window.removeEventListener('afterprint',fin);};
+    window.addEventListener('afterprint',fin);setTimeout(()=>window.print(),200);return;
+  }
+  // celular (APK): se genera un PDF real, una hoja A4 por página
+  if(typeof html2canvas==="undefined"||!(window.jspdf&&window.jspdf.jsPDF)){c.innerHTML="";return alert("No se pudo cargar la herramienta para crear el PDF. Revisa tu conexión e intenta de nuevo.");}
+  c.style.cssText="display:block;position:fixed;left:-10000px;top:0;";
+  let pags=Array.from(c.querySelectorAll('.po-pag')),pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'}),i=0;
+  const sig=()=>{
+    if(i>=pags.length){
+      c.style.cssText="";c.innerHTML="";
+      return poGuardar(nombre+".pdf","application/pdf",pdf.output('blob'));
+    }
+    html2canvas(pags[i],{scale:2,backgroundColor:"#ffffff"}).then(cv=>{
+      if(i>0)pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,0,210,297);i++;sig();
+    }).catch(()=>{c.style.cssText="";c.innerHTML="";alert("No se pudo generar el PDF. Intenta de nuevo.");});
+  };
+  sig();
+}
+</script>
+</body>
+</html>
